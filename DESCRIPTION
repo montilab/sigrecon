@@ -1,0 +1,30 @@
+Package: sigrecon
+Title: Benchmarking tasks and metrics for signature recontextualization method
+Version: 0.0.1
+Authors@R: 
+    person("Andrew", "Chen", , "andrewdr@bu.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-8508-0227"))
+Description: Provides metrics to evaluate the effectiveness of signature recontextualizaiton methods based on curated datasets of perturbational signatures: Perturb-Seq, DrugMatrix, and SciPlex. Additionally, provides two baseline methods of signature recontextualization based on network propagation and gene set variation analysis (GSVA).
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+URL: https://github.com/montilab/sigrecon
+BugReports: https://github.com/montilab/sigrecon/issues
+Depends: 
+    R (>= 3.5)
+LazyData: true
+Imports:
+    Biobase,
+    GSVA,
+    R6,
+    SummarizedExperiment,
+    WGCNA,
+    doParallel,
+    dplyr,
+    ggplot2,
+    igraph,
+    magrittr,
+    purrr,
+    tibble,
+    Matrix
