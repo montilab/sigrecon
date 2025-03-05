@@ -22,7 +22,7 @@ random_walk(
 
 \item{epsilon}{Exploration factor}
 
-\item{normalize}{Normlization strategy}
+\item{normalize}{Normalization strategy}
 }
 \value{
 It returns a sparse matrix with stationary probabilities.

@@ -74,8 +74,6 @@ pvector <- R6Class("pvector", list(
 #'
 #' @importFrom Biobase exprs
 #' @importFrom stats mad
-#'
-#' @export
 rank.var.eset <- function(eset, fn=mad, filter_zero=FALSE) {
   eset.mat <- Biobase::exprs(eset)
   gene.var <- apply(eset.mat, 1, fn)
@@ -111,8 +109,6 @@ rank.var.eset <- function(eset, fn=mad, filter_zero=FALSE) {
 #' @importFrom parallel detectCores makeCluster parLapply
 #' @importFrom doParallel registerDoParallel
 #' @importFrom Biobase featureNames
-#'
-#' @export
 common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALSE) {
   if(parallel) {
     no_cores <- detectCores() - 1
@@ -154,8 +150,6 @@ common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALS
 #' The function iterates through the variable features of each Seurat object,
 #' selecting genes that are present in all objects. It continues until it reaches
 #' the specified limit or exhausts all common variable genes.
-#'
-#' @export
 seurat_common_var_genes <- function(seurat_objs, limit) {
   pvectors <- lapply(seurat_objs, function(x) pvector$new(x@assays$RNA@var.features))
   selected <- c()
@@ -174,232 +168,28 @@ seurat_common_var_genes <- function(seurat_objs, limit) {
   return(selected)
 }
 
-
-#' Calculate Jaccard Similarity for Multiple Pairs of Sets
+#' Vectorized Kolmogorov-Smirnov Test
 #'
-#' @param sigs1 A list of sets (vectors)
-#' @param sigs2 A list of sets (vectors), must be the same length as sigs1
+#' This function performs a vectorized Kolmogorov-Smirnov test on multiple gene vectors.
 #'
-#' @return A vector of Jaccard similarity scores
+#' @param data_vecs A list of data vectors, each representing a gene.
+#' @param ref_vecs A list of reference vectors, each representing a gene.
+#' @param use_weights Logical, whether to use weights in the KS test. Default is TRUE.
+#' @param weights.pwr Numeric, the power to which weights are raised. Default is 1.
 #'
-#' @export
-vjaccard <- function(sigs1, sigs2) {
-  stopifnot(length(sigs1)==length(sigs2))
-  sims <- c()
-  for(i in seq_along(sigs1)) {
-    sim <- jaccard(sigs1[[i]], sigs2[[i]])
-    sims <- c(sims, sim)
-  }
-  return(sims)
-}
-
-#' Calculate Jaccard Similarity Between Two Sets
-#'
-#' @param a A vector representing a set
-#' @param b A vector representing a set
-#'
-#' @return The Jaccard similarity score between sets a and b
-#'
-#' @export
-jaccard <- function(a, b) {
-  intersection <- length(intersect(a, b))
-  union <- length(a) + length(b) - intersection
-  return (intersection/union)
-}
-
-#' Create a Jaccard Similarity Matrix for Multiple Sets
-#'
-#' @param sets A list of sets (vectors)
-#'
-#' @return A matrix of Jaccard similarity scores between all pairs of sets
-#'
-#' @export
-jaccard_matrix <- function(sets) {
-  n_sets <- length(sets)
-  jaccard_mat <- matrix(data = NA,nrow=n_sets,ncol=n_sets)
-  rownames(jaccard_mat) <- names(sets)
-  colnames(jaccard_mat) <- names(sets)
-
-  for (i in seq_along(sets)) {
-    set_i <- sets[[i]]
-    for (j in seq_along(sets)) {
-      set_j <- sets[[j]]
-      jaccard_mat[i, j] <- jaccard(set_i, set_j)
-    }
-  }
-
-  return(jaccard_mat)
-}
-
-#' Normalize Columns of a Matrix
-#'
-#' @param matrix A numeric matrix to be normalized
-#'
-#' @return A matrix with columns normalized by their sums
-#'
-#' @export
-col_normalize <- function(matrix) {
-  return(scale(matrix, center=FALSE, scale=colSums(matrix)))
-}
-
-#' Binarize Multiple Matrices Based on Cutoffs
-#'
-#' @param matrix_list A list of matrices to be binarized
-#' @param cutoff_list A list of cutoff values, one for each matrix
-#'
-#' @return A list of binarized matrices
+#' @return A list containing two elements:
+#'   \item{D_stats}{A numeric vector of D statistics for each gene}
+#'   \item{p_vals}{A numeric vector of p-values for each gene}
 #'
 #' @details
-#' This function takes a list of matrices and a corresponding list of cutoff values.
-#' For each matrix, values less than or equal to the cutoff are set to 0, and values
-#' greater than the cutoff are set to 1.
+#' This function applies the Kolmogorov-Smirnov test to multiple gene vectors simultaneously.
+#' It compares each data vector to its corresponding reference vector and calculates
+#' the D statistic and p-value for each gene.
+#'
+#' If `use_weights` is TRUE, the function applies weights to the KS test, with weights
+#' ranging from 1 to -1 across the ranks.
 #'
 #' @export
-binarize_matrices <- function(matrix_list, cutoff_list) {
-
-  #Two lists should be of equal length, with the same names
-  stopifnot(names(matrix_list)==names(cutoff_list))
-  binarized_matrices <- list()
-  for (i in seq_along(cutoff_list)) {
-    cutoff <- cutoff_list[[i]]
-    matrix <- matrix_list[[i]]
-    name <- names(matrix_list)[[i]]
-    matrix_filter <- matrix <= cutoff
-    matrix[matrix_filter] <- 0
-    matrix[!matrix_filter] <- 1
-    binarized_matrices[[name]] <- matrix
-  }
-  return(binarized_matrices)
-}
-
-#' Extract Largest Connected Subgraph
-#'
-#' @param igraph An igraph object
-#'
-#' @return An igraph object representing the largest connected component of the input graph
-#'
-#' @importFrom igraph components V subgraph
-#'
-#' @export
-largest_connected_subgraph <- function(igraph) {
-  component_filter <- components(igraph)$membership == 1
-  component_nodes <- V(igraph)$name[component_filter]
-  largest_subgraph <- subgraph(igraph, component_nodes)
-  return(largest_subgraph)
-}
-
-# Prepare signature so that only the intersection across all graphs is used
-drop_nas_list <- function(l) {
-  #l is a list
-  l <- l[!is.na(l)]
-  return(l)
-}
-
-filter_list <- function(l, filter=1) {
-  #l is a list
-  l <- l[l==filter]
-  return(l)
-}
-
-#' Filter Signatures for Common Nodes Across Graphs
-#'
-#' @param graphs A list of igraph objects
-#' @param signatures A list of node signatures (vectors of node names)
-#'
-#' @return A list of filtered signatures containing only nodes common to all graphs
-#'
-#' @description
-#' This function takes a list of graphs and a list of node signatures, and filters
-#' each signature to include only nodes that are present in the largest connected
-#' component of all provided graphs.
-#'
-#' @details
-#' For each signature:
-#' 1. It checks which nodes are in the largest connected component of each graph.
-#' 2. It finds the intersection of these nodes across all graphs.
-#' 3. It returns this intersection as the new filtered signature.
-#'
-#' @importFrom igraph components
-#' @importFrom purrr reduce
-#' @importFrom magrittr %>%
-#'
-#' @export
-common_signature_filter <- function(graphs, signatures) {
-  new_sigs <- list()
-  for (sig_name in names(signatures)) {
-    sig <- signatures[[sig_name]]
-    node_common <- lapply(graphs, function(x) igraph::components(x)$membership[sig] %>% drop_nas_list %>% filter_list %>% names) %>% purrr::reduce(intersect)
-    new_sigs[[sig_name]] <- node_common
-  }
-  return(new_sigs)
-}
-
-#' Extract Signature Nodes from Random Walk Results
-#'
-#' @param rwr_df A dataframe containing the results of RWR, including columns for
-#'               cancer type, signature, node type, and node names.
-#' @param sig_label The label of the signature to filter for.
-#' @param node_label The label of the node type to filter for.
-#' @param cancer_label The label of the cancer type to filter for.
-#'
-#' @return A vector of node names that are significant for the specified signature,
-#'         node type, and cancer type.
-#'
-#' @importFrom dplyr filter
-#' @importFrom magrittr %>%
-#' @importFrom dplyr pull
-#'
-#' @export
-get_signature <- function(rwr_df, sig_label, node_label, cancer_label) {
-  # rwr_df: Dataframe of stationary probabilities with cancer, signature, and node annotations
-  # Return: List of node labels that are significant after doing signature propagation on cancer_label graph with sig_label sig
-
-  sig <- rwr_df %>% dplyr::filter((Node == node_label) & (cancer == cancer_label) & (signature == sig_label)) %>% pull(name)
-  return(sig)
-}
-
-get_signature_list <- function(rwr_df, sig_label, node_label="Significant") {
-  # Returns a named list of significant nodes for each cancer
-  cancer_labels <- unique(rwr_df[['cancer']])
-  names(cancer_labels) <- cancer_labels
-  return(lapply(cancer_labels, get_signature, rwr_df=rwr_df, node_label=node_label, sig_label=sig_label))
-}
-
-#' Find all pairwise distances between nodes in an igraph
-#'
-#' This function computes the pairwise distances between nodes within each set of nodes
-#' provided in a list, based on the structure of an input graph.
-#'
-#' @param g An igraph object representing the graph.
-#' @param node_list A list where each element is a vector of node names or IDs.
-#'
-#' @return A list of vectors, each containing the pairwise distances for the corresponding node set.
-#'
-#' @details
-#' The function first calculates the full distance matrix for the graph using igraph::distances().
-#' Then, for each set of nodes in `node_list`, it extracts the relevant submatrix and returns
-#' the lower triangular part, which represents all pairwise distances within that set.
-#'
-#' @export
-all_dists_nodesets <- function(g, node_list) {
-  stopifnot(class(g) == "igraph")
-  stopifnot(class(node_list) == "list")
-
-  g_dist <- igraph::distances(g)
-
-  all_dists_nodeset <- function(dist_matrix, nodes) {
-    node_filter <- nodes %in% rownames(dist_matrix)
-    nodes <- nodes[node_filter]
-    g_dist_sig <- g_dist[nodes, nodes]
-    g_dist_sig <- g_dist_sig[lower.tri(g_dist_sig)]
-    return(g_dist_sig)
-  }
-
-  dists_nodesets <- lapply(node_list, all_dists_nodeset, dist_matrix=g_dist)
-  return(dists_nodesets)
-}
-
-# Original GSEA 2004 used correlation with phenotype as the weight, and 1 as default power.
 v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
 
   n_ranks <- length(ref_vecs[[1]])
@@ -454,6 +244,7 @@ v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
 #' @importFrom stats ks.test
 #'
 #' @keywords internal
+#' @export
 kstest <- function(n.x,
                    y,
                    weights=NULL,
@@ -527,13 +318,245 @@ kstest <- function(n.x,
               plot=p))
 }
 
+#' Calculate Jaccard Similarity for Multiple Pairs of Sets
+#'
+#' @param sigs1 A list of sets (vectors)
+#' @param sigs2 A list of sets (vectors), must be the same length as sigs1
+#'
+#' @return A vector of Jaccard similarity scores
+#'
+#' @export
+v.jaccard <- function(sigs1, sigs2) {
+  stopifnot(length(sigs1)==length(sigs2))
+  sims <- c()
+  for(i in seq_along(sigs1)) {
+    sim <- jaccard(sigs1[[i]], sigs2[[i]])
+    sims <- c(sims, sim)
+  }
+  return(sims)
+}
+
+#' Calculate Jaccard Similarity Between Two Sets
+#'
+#' @param a A vector representing a set
+#' @param b A vector representing a set
+#'
+#' @return The Jaccard similarity score between sets a and b
+#'
+#' @export
+jaccard <- function(a, b) {
+  intersection <- length(intersect(a, b))
+  union <- length(a) + length(b) - intersection
+  return (intersection/union)
+}
+
+#' Create a Jaccard Similarity Matrix for Multiple Sets
+#'
+#' @param sets A list of sets (vectors)
+#'
+#' @return A matrix of Jaccard similarity scores between all pairs of sets
+#'
+#' @export
+jaccard_matrix <- function(sets) {
+  n_sets <- length(sets)
+  jaccard_mat <- matrix(data = NA,nrow=n_sets,ncol=n_sets)
+  rownames(jaccard_mat) <- names(sets)
+  colnames(jaccard_mat) <- names(sets)
+
+  for (i in seq_along(sets)) {
+    set_i <- sets[[i]]
+    for (j in seq_along(sets)) {
+      set_j <- sets[[j]]
+      jaccard_mat[i, j] <- jaccard(set_i, set_j)
+    }
+  }
+
+  return(jaccard_mat)
+}
+
+#' Count number of displaced seeds
+#' Note: This not commutative. Num_displaced is the number of genes that are from the original seed that are not in the recon.
+#' @param recon_sig Named list of genesets
+#' @param seed_sig Named list of genesets
+#' @return Named list for which each entry is a list with two elements: displaced seed genes, and non-displaced seed genes
+#'
+#' @export
+count_displaced_genes <- function(recon_sig, seed_sig) {
+  # Two lists of genesets should have the same names
+  stopifnot(all(names(recon_sig) == names(seed_sig)))
+
+  displaced <- list()
+  for (name in names(seed_sig)) {
+    seeds_in_recon <- seed_sig[[name]] %in% recon_sig[[name]]
+    n_displaced <- sum(!seeds_in_recon)
+    n_not_displaced <- sum(seeds_in_recon)
+    displaced[[name]] <- list(displaced = n_displaced, not_displaced = n_not_displaced)
+  }
+
+  return(displaced)
+}
+
+#' Normalize Columns of a Matrix
+#'
+#' @param matrix A numeric matrix to be normalized
+#'
+#' @return A matrix with columns normalized by their sums
+col_normalize <- function(matrix) {
+  return(scale(matrix, center=FALSE, scale=colSums(matrix)))
+}
+
+#' Binarize Multiple Matrices Based on Cutoffs
+#'
+#' @param matrix_list A list of matrices to be binarized
+#' @param cutoff_list A list of cutoff values, one for each matrix
+#'
+#' @return A list of binarized matrices
+#'
+#' @details
+#' This function takes a list of matrices and a corresponding list of cutoff values.
+#' For each matrix, values less than or equal to the cutoff are set to 0, and values
+#' greater than the cutoff are set to 1.
+binarize_matrices <- function(matrix_list, cutoff_list) {
+
+  #Two lists should be of equal length, with the same names
+  stopifnot(names(matrix_list)==names(cutoff_list))
+  binarized_matrices <- list()
+  for (i in seq_along(cutoff_list)) {
+    cutoff <- cutoff_list[[i]]
+    matrix <- matrix_list[[i]]
+    name <- names(matrix_list)[[i]]
+    matrix_filter <- matrix <= cutoff
+    matrix[matrix_filter] <- 0
+    matrix[!matrix_filter] <- 1
+    binarized_matrices[[name]] <- matrix
+  }
+  return(binarized_matrices)
+}
+
+#' Extract Largest Connected Subgraph
+#'
+#' @param igraph An igraph object
+#'
+#' @return An igraph object representing the largest connected component of the input graph
+#'
+#' @importFrom igraph components V subgraph
+largest_connected_subgraph <- function(igraph) {
+  component_filter <- components(igraph)$membership == 1
+  component_nodes <- V(igraph)$name[component_filter]
+  largest_subgraph <- subgraph(igraph, component_nodes)
+  return(largest_subgraph)
+}
+
+# Prepare signature so that only the intersection across all graphs is used
+drop_nas_list <- function(l) {
+  #l is a list
+  l <- l[!is.na(l)]
+  return(l)
+}
+
+filter_list <- function(l, filter=1) {
+  #l is a list
+  l <- l[l==filter]
+  return(l)
+}
+
+#' Filter Signatures for Common Nodes Across Graphs
+#'
+#' @param graphs A list of igraph objects
+#' @param signatures A list of node signatures (vectors of node names)
+#'
+#' @return A list of filtered signatures containing only nodes common to all graphs
+#'
+#' @description
+#' This function takes a list of graphs and a list of node signatures, and filters
+#' each signature to include only nodes that are present in the largest connected
+#' component of all provided graphs.
+#'
+#' @details
+#' For each signature:
+#' 1. It checks which nodes are in the largest connected component of each graph.
+#' 2. It finds the intersection of these nodes across all graphs.
+#' 3. It returns this intersection as the new filtered signature.
+#'
+#' @importFrom igraph components
+#' @importFrom purrr reduce
+#' @importFrom magrittr %>%
+common_signature_filter <- function(graphs, signatures) {
+  new_sigs <- list()
+  for (sig_name in names(signatures)) {
+    sig <- signatures[[sig_name]]
+    node_common <- lapply(graphs, function(x) igraph::components(x)$membership[sig] %>% drop_nas_list %>% filter_list %>% names) %>% purrr::reduce(intersect)
+    new_sigs[[sig_name]] <- node_common
+  }
+  return(new_sigs)
+}
+
+#' Extract Signature Nodes from Random Walk Results
+#'
+#' @param rwr_df A dataframe containing the results of RWR, including columns for
+#'               cancer type, signature, node type, and node names.
+#' @param sig_label The label of the signature to filter for.
+#' @param node_label The label of the node type to filter for.
+#' @param cancer_label The label of the cancer type to filter for.
+#'
+#' @return A vector of node names that are significant for the specified signature,
+#'         node type, and cancer type.
+#'
+#' @importFrom dplyr filter
+#' @importFrom magrittr %>%
+#' @importFrom dplyr pull
+get_signature <- function(rwr_df, sig_label, node_label, cancer_label) {
+  # rwr_df: Dataframe of stationary probabilities with cancer, signature, and node annotations
+  # Return: List of node labels that are significant after doing signature propagation on cancer_label graph with sig_label sig
+
+  sig <- rwr_df %>% dplyr::filter((Node == node_label) & (cancer == cancer_label) & (signature == sig_label)) %>% pull(name)
+  return(sig)
+}
+
+get_signature_list <- function(rwr_df, sig_label, node_label="Significant") {
+  # Returns a named list of significant nodes for each cancer
+  cancer_labels <- unique(rwr_df[['cancer']])
+  names(cancer_labels) <- cancer_labels
+  return(lapply(cancer_labels, get_signature, rwr_df=rwr_df, node_label=node_label, sig_label=sig_label))
+}
+
+#' Find all pairwise distances between nodes in an igraph
+#'
+#' This function computes the pairwise distances between nodes within each set of nodes
+#' provided in a list, based on the structure of an input graph.
+#'
+#' @param g An igraph object representing the graph.
+#' @param node_list A list where each element is a vector of node names or IDs.
+#'
+#' @return A list of vectors, each containing the pairwise distances for the corresponding node set.
+#'
+#' @details
+#' The function first calculates the full distance matrix for the graph using igraph::distances().
+#' Then, for each set of nodes in `node_list`, it extracts the relevant submatrix and returns
+#' the lower triangular part, which represents all pairwise distances within that set.
+all_dists_nodesets <- function(g, node_list) {
+  stopifnot(class(g) == "igraph")
+  stopifnot(class(node_list) == "list")
+
+  g_dist <- igraph::distances(g)
+
+  all_dists_nodeset <- function(dist_matrix, nodes) {
+    node_filter <- nodes %in% rownames(dist_matrix)
+    nodes <- nodes[node_filter]
+    g_dist_sig <- g_dist[nodes, nodes]
+    g_dist_sig <- g_dist_sig[lower.tri(g_dist_sig)]
+    return(g_dist_sig)
+  }
+
+  dists_nodesets <- lapply(node_list, all_dists_nodeset, dist_matrix=g_dist)
+  return(dists_nodesets)
+}
+
 #' An empty ggplot
 #'
 #' @return A ggplot object
 #'
 #' @importFrom ggplot2 ggplot theme_void
-#'
-#' @export
 ggempty <- function() {
   ggplot() +
     theme_void()
@@ -549,8 +572,6 @@ ggempty <- function() {
 #' @return A ggplot object
 #'
 #' @importFrom ggplot2 qplot aes geom_rug geom_hline geom_vline annotate theme element_text element_blank element_line element_rect
-#'
-#' @export
 ggeplot <- function(n, positions, x_axis, y_axis, title="") {
   score <- which.max(abs(y_axis))
   qplot(x_axis,

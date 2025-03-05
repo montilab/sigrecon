@@ -10,8 +10,6 @@ library(SummarizedExperiment)
 #' @param matrix A square matrix.
 #'
 #' @return A matrix of the same dimensions as the input, with diagonal elements set to zero.
-#'
-#' @export
 diag_zero <- function(matrix) {
   diag(matrix) <- 0
   return(matrix)
@@ -35,8 +33,6 @@ diag_zero <- function(matrix) {
 #' 3. Returns a binary adjacency matrix where 1 indicates a consensus connection and 0 indicates no consensus.
 #'
 #' @importFrom purrr reduce
-#'
-#' @export
 consensus_net <- function(list_of_nets, threshold=0.9) {
   ### List of nets: A list of adjacency matrices
   avg_adj <- reduce(list_of_nets, `+`) / length(list_of_nets)
@@ -65,8 +61,6 @@ consensus_net <- function(list_of_nets, threshold=0.9) {
 #'
 #' @importFrom Biobase pData
 #' @importFrom dplyr group_by sample_frac ungroup pull
-#'
-#' @export
 eset_stratified_sample <- function(eset, stratify_column, sample_id_column, p=0.5) {
   print(stratify_column)
   pdata <- pData(eset)
@@ -105,15 +99,6 @@ eset_stratified_sample <- function(eset, stratify_column, sample_id_column, p=0.
 #' @note
 #' This function requires the eset_stratified_sample and wgcna.adj functions to be available.
 #' Currently, only the WGCNA method is fully implemented.
-#'
-#' @examples
-#' \dontrun{
-#' library(Biobase)
-#' data(sample.ExpressionSet)
-#' split_learn_save(sample.ExpressionSet, "type", "sample", "output_dir", "network")
-#' }
-#'
-#' @export
 split_learn_save <- function(eset,
                              stratify_col,
                              sample_id_col,
@@ -161,8 +146,6 @@ split_learn_save <- function(eset,
 #' @details
 #' If a valid power estimate is found in the input, it is returned. If the power estimate is NA,
 #' a default value of 6 is returned. The function prints a message indicating which power is being used.
-#'
-#' @export
 sft.check <- function(sft) {
   beta <- sft$powerEstimate
   if (is.na(beta)) {
@@ -196,8 +179,6 @@ sft.check <- function(sft) {
 #' @importFrom WGCNA pickSoftThreshold.fromSimilarity adjacency.fromSimilarity
 #' @importFrom doParallel registerDoParallel
 #' @importFrom igraph graph_from_adjacency_matrix
-#'
-#' @export
 wgcna.power <- function(cor_mat,
                         cores=1,
                         igraph=TRUE,

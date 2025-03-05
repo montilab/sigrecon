@@ -57,11 +57,3 @@ For each split:
 This function requires the eset_stratified_sample and wgcna.adj functions to be available.
 Currently, only the WGCNA method is fully implemented.
 }
-\examples{
-\dontrun{
-library(Biobase)
-data(sample.ExpressionSet)
-split_learn_save(sample.ExpressionSet, "type", "sample", "output_dir", "network")
-}
-
-}

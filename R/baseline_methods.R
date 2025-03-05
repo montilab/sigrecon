@@ -67,8 +67,6 @@ gsva_recon <- function(sce,
 #' @return A binary matrix where rows represent genes in the graph and columns represent seed sets.
 #'
 #' @importFrom igraph V
-#'
-#' @export
 seed_matrix <- function(ig, seeds) {
   # Seeds can be a single character vector. In that case need to list-ify it.
   if (is(seeds, "character") && length(seeds) == 1) {
@@ -116,9 +114,6 @@ seed_matrix <- function(ig, seeds) {
 #' @param epsilon Exploration factor
 #' @param normalize Normalization strategy
 #' @return (n_gene, n_seeds) matrix of stationary probability values
-#'
-#' @export
-#'
 rwr_mat <- function(ig, seeds, restart = 0.75, epsilon = NULL, normalize = c("row", "column", "laplacian", "none")) {
   # Assumes all seeds are present in ig graph
   # browser()
@@ -141,8 +136,6 @@ rwr_mat <- function(ig, seeds, restart = 0.75, epsilon = NULL, normalize = c("ro
 #' @param mat (n_gene, n_seed) matrix of stationary probability values from rwr_mat
 #' @param limit Number of genes to keep in the output, or a vector of lengths
 #' @return A named list of genesets. Each list element is the recontextualized signature for that seed.
-#'
-#' @export
 top_n_mat <- function(mat, limit = 30) {
   top_n <- list()
 
@@ -169,8 +162,6 @@ top_n_mat <- function(mat, limit = 30) {
 #' Returns a dataframe object with the stationary probability value and column indicating whether gene was a seed
 #' @param prob_vec (n_gene, 1) matrix
 #' @param seeds character vector
-#'
-#' @export
 annotate_prob_vec <- function(prob_vec, seeds) {
   stopifnot(is(prob_vec, "dgCMatrix") | is(prob_vec, "Matrix"))
   stopifnot("Can only annotate (n x 1) vectors" = dim(prob_vec)[[2]] == 1)
@@ -195,9 +186,6 @@ annotate_prob_vec <- function(prob_vec, seeds) {
 #' @param restart Numeric, Probability of restarting at the seed nodes
 #' @param normalize Normalization strategy
 #' @return List of Annotated Dataframes. Each Dataframe has columns for gene label, probability value, and seed status.
-#'
-#' @export
-#'
 rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "laplacian", "none")) {
 
   normalize <- match.arg(normalize)
@@ -211,6 +199,136 @@ rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "la
   return(dfs)
 }
 
+#' Generate Network Signatures from a Path
+#'
+#' This function reads a network object from a file path and generates network signatures based on provided seeds.
+#'
+#' @param path A character string specifying the file path to the network object (RDS file).
+#' @param seeds A character vector or list of seed genes/nodes.
+#' @param sig The signature generation method. Either "corr" for correlation-based or "rwr" for random walk with restart. Default is c("corr", "rwr").
+#' @param p A numeric value specifying the restart probability for random walk. Default is 0.1.
+#' @param limit An integer specifying the maximum number of nodes to include in the signature. Default is 30.
+#'
+#' @return A list of network signatures. If the input is a single network, returns a single signature list. If the input is a list of networks, returns a list of signature lists.
+#'
+#' @export
+network_sig_path <- function(path,
+                             seeds,
+                             sig = c("corr", "rwr"),
+                             p = 0.1,
+                             limit = 30) {
+  net_object <- readRDS(path)
+
+  stopifnot(is(seeds, "character")| is(seeds, "list"))
+
+  if (length(seeds) > 1 & is.null(names(seeds))) {
+    stop("Seed signature needs name")
+  }
+
+  if (is(net_object, "igraph")) {
+    sigs <- network_sig(net_object, seeds, sig, p, limit)
+  } else if (is(net_object, "list") || is(net_object, "character")) {
+    sigs <- lapply(net_object, function(x) network_sig(x, seeds, sig, p, limit))
+  }
+  return(sigs)
+}
+
+
+#' Finds a simulated network signature
+#'
+#' @param net network given as an igraph
+#' @param seeds single gene string or vector of gene strings or named list of sets of gene symbols
+#' @param sig String, network signature type: random walk, correlation, nearest neighbor
+#' @param p Numeric, restart value for random walk, default=0.1
+#' @param limit number of genes to be included in the network signature, default=30
+#'
+#' @return vector of gene strings
+#'
+#' @importFrom igraph as_adj
+#' @export
+network_sig <- function(net,
+                        seeds,
+                        sig = c("corr", "rwr"),
+                        p = 0.1,
+                        limit = 30) {
+  stopifnot(is(seeds, "character")| is(seeds, "list"))
+
+  if (sig == "corr") {
+    if ("weight" %in% list.edge.attributes(net)) {
+      cor_mat <- igraph::as_adj(net, attr = "weight")
+    } else {
+      cor_mat <- igraph::as_adj(net, attr = NULL)
+    }
+    net_sig <- correlated_sigs(corr_mat = cor_mat, seeds = seeds, limit = limit)
+  } else if (sig == "rwr") {
+    mat <- rwr_mat(net, seeds, restart = p)
+    net_sig <- top_n_mat(mat, limit = limit)
+  }
+  return(net_sig)
+}
+
+
+#' Recontextualize seed signatures with correlation based neighbors
+#'
+#' @param corr_mat Correlation Matrix
+#' @param seeds Seed or List of seeds
+#' @param limit Numeric indicating the number of genes to be returned
+correlated_sigs <- function(corr_mat, seeds, limit = 30) {
+
+  # Seeds can be a single character vector. In that case need to list-ify it.
+  if (is(seeds, "character") && length(seeds) == 1) {
+    seeds <- list(seeds)
+    names(seeds) <- seeds
+  } else if (is.null(names(seeds))) {
+    stop("Seed signature needs name")
+  }
+
+  all_genes <- unname(unlist(seeds))
+  seed_filter <- all_genes %in% rownames(corr_mat)
+
+  stopifnot("Seed Genes are not all contained in the Correlation matrix." = all(seed_filter))
+
+  top_corrs <- list()
+  for (gs_name in names(seeds)) {
+    geneset <- seeds[[gs_name]]
+
+    if (length(geneset) > 1) {
+      mean_corrs <- apply(corr_mat[, geneset], 1, mean)
+      top_corr <- sort(mean_corrs, decreasing = TRUE)[1:limit]
+      top_corr <- names(top_corr)
+      top_corrs[[gs_name]] <- top_corr
+    } else {
+      top_corr <- sort(corr_mat[, geneset], decreasing = TRUE)[1:limit]
+      top_corrs[[gs_name]] <- names(top_corr)
+    }
+  }
+
+  return(top_corrs)
+}
+
+#' Recontextualize seed signatures with correlation based neighbors
+#'
+#' @param corr_mats List of correlation matrices
+#' @param seeds List of seeds, length has to match corr_mats
+#' @param limit Numeric indicating the number of genes to be returned
+v.correlated_sigs <- function(corr_mats, seeds, limit = 30) {
+  # browser()
+  sigs <- list()
+  for (i in seq_along(corr_mats)) {
+    corr_mat <- corr_mats[[i]]
+    name <- names(corr_mats)[[i]]
+    seed <- seeds[i]
+
+    top_corrs <- correlated_sigs(corr_mat, seed, limit)
+
+    if (is.null(name)) {
+      sigs[[i]] <- top_corrs
+    } else {
+      sigs[[name]] <- top_corrs
+    }
+  }
+  return(sigs)
+}
 
 #' Perform a random walk with restart (personalized page rank) on an igraph given a seed matrix, and return stationary probabilties.
 #' Stripped down and corrected version of dnet: https://rdrr.io/cran/dnet/src/R/dRWR.r
@@ -219,7 +337,7 @@ rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "la
 #' @param seed_mat (Gene, num_seeds) matrix with prior weights for each gene in a seed set. See seed_matrix.
 #' @param restart the restart probability for RWR
 #' @param epsilon Exploration factor
-#' @param normalize Normlization strategy
+#' @param normalize Normalization strategy
 #' @return It returns a sparse matrix with stationary probabilities.
 #'
 #' @importFrom igraph list.edge.attributes as_adjacency_matrix
