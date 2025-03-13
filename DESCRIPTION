@@ -27,4 +27,5 @@ Imports:
     magrittr,
     purrr,
     tibble,
-    Matrix
+    Matrix,
+    SILGGM

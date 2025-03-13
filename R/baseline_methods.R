@@ -36,12 +36,18 @@ gsva_recon <- function(sce,
   gsva_eset <- GSVA::gsva(sce, sigs, mx.diff = TRUE, verbose = FALSE)
 
   genes_data <- t(sce@assays@data$counts)
+
+  if (is(genes_data, "sparseMatrix")) {
+    genes_data <- as.matrix(genes_data)
+  }
+
   gsva_scores <- t(gsva_eset@assays@data$es)
   corr_mat <- stats::cor(genes_data, gsva_scores, method = "pearson")
 
   results <- as_tibble(corr_mat, rownames="gene")
   new_sigs <- list()
-  for(sig_name in names(sigs)) {
+  for(sig_name in colnames(gsva_scores)) {
+    print(sig_name)
     # Obtain Rank of Genes most correlated to GSVA scores
     results$rank <- rank(dplyr::desc(results[[sig_name]]))
 

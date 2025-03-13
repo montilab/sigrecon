@@ -4,19 +4,17 @@
 \alias{wgcna.power}
 \title{Construct WGCNA Adjacency Matrix from Correlation Matrix}
 \usage{
-wgcna.power(cor_mat, cores = 1, igraph = TRUE, diag_zero = TRUE)
+wgcna.power(cor_mat, cores = 1, diag_zero = TRUE)
 }
 \arguments{
 \item{cor_mat}{A correlation matrix of gene expression data.}
 
 \item{cores}{Number of CPU cores to use for parallel computing. Default is 1.}
 
-\item{igraph}{If TRUE, returns an igraph object instead of a matrix. Default is TRUE.}
-
 \item{diag_zero}{If TRUE, sets the diagonal of the adjacency matrix to zero. Default is TRUE.}
 }
 \value{
-An adjacency matrix or an igraph object representing the gene co-expression network.
+An adjacency matrix representing the gene co-expression network.
 }
 \description{
 This function constructs a weighted gene co-expression network adjacency matrix using WGCNA,

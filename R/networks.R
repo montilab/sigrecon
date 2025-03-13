@@ -165,10 +165,9 @@ sft.check <- function(sft) {
 #'
 #' @param cor_mat A correlation matrix of gene expression data.
 #' @param cores Number of CPU cores to use for parallel computing. Default is 1.
-#' @param igraph If TRUE, returns an igraph object instead of a matrix. Default is TRUE.
 #' @param diag_zero If TRUE, sets the diagonal of the adjacency matrix to zero. Default is TRUE.
 #'
-#' @return An adjacency matrix or an igraph object representing the gene co-expression network.
+#' @return An adjacency matrix representing the gene co-expression network.
 #'
 #' @details
 #' This function performs the following steps:
@@ -178,10 +177,8 @@ sft.check <- function(sft) {
 #'
 #' @importFrom WGCNA pickSoftThreshold.fromSimilarity adjacency.fromSimilarity
 #' @importFrom doParallel registerDoParallel
-#' @importFrom igraph graph_from_adjacency_matrix
 wgcna.power <- function(cor_mat,
                         cores=1,
-                        igraph=TRUE,
                         diag_zero=TRUE) {
 
   # Set parallel computing environment
@@ -201,9 +198,7 @@ wgcna.power <- function(cor_mat,
   if(diag_zero) {
     adj <- diag_zero(adj)
   }
-  if(igraph) {
-    adj <- igraph::graph_from_adjacency_matrix(adj, weighted=TRUE, mode="undirected")
-  }
+
   return(adj)
 }
 
@@ -298,3 +293,59 @@ wgcna.adj <- function(eset,
   }
   return(adj)
 }
+
+
+#' Compute Sparse Partial Correlation Network with SILGGM
+#'
+#' This function performs sparse partial correlation estimation using the SILGGM package,
+#' with optional p-value filtering, WGCNA power transformation, and igraph conversion.
+#'
+#' @param mat A matrix
+#' @param method Correlation estimation method for SILGGM. Default "B_NW_SL".
+#'               See [SILGGM::SILGGM()] for options.
+#' @param wgcna_power Logical indicating whether to apply WGCNA soft power thresholding.
+#'                    Default TRUE.
+#' @param pval_filter Logical indicating whether to filter edges by p-value. Default TRUE.
+#' @param pval Significance threshold for edge filtering. Default 0.05.
+#' @param igraph Logical indicating whether to return an igraph object. Default TRUE.
+#'
+#' @return Either:
+#' - Weighted adjacency matrix (if `igraph = FALSE`)
+#' - igraph graph object (if `igraph = TRUE`)
+#'
+#' @details The function performs these steps:
+#' 1. Estimates sparse partial correlations using SILGGM
+#' 2. Optionally filters edges by p-value significance
+#' 3. Optionally applies WGCNA soft thresholding
+#' 4. Converts to igraph object if requested
+#'
+#' @importFrom SILGGM SILGGM
+#' @importFrom igraph graph_from_adjacency_matrix
+#' @export
+silggm.adj <- function(mat,
+                       method = "B_NW_SL",
+                       wgcna_power = TRUE,
+                       pval_filter = TRUE,
+                       pval = 0.05,
+                       igraph = TRUE) {
+  stopifnot(is(mat, "matrix"))
+
+  silggm_res <- SILGGM::SILGGM(mat, method = method)
+  silggm_mat <- as.matrix(silggm_res$partialCor)
+
+  if (pval_filter) {
+    silggm_pval <- as.matrix(silggm_res$p_partialCor)
+    silggm_pval_bool <- silggm_pval < p_val
+    silggm_mat[!silggm_pval_bool] <- 0
+  }
+
+  if (wgcna_power) {
+    silggm_mat <- wgcna.power(silggm_mat)
+  }
+
+  if(igraph) {
+    adj <- igraph::graph_from_adjacency_matrix(silggm_mat, weighted=TRUE, mode="undirected")
+  }
+  return(silggm_mat)
+}
+
