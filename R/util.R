@@ -151,7 +151,12 @@ common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALS
 #' selecting genes that are present in all objects. It continues until it reaches
 #' the specified limit or exhausts all common variable genes.
 seurat_common_var_genes <- function(seurat_objs, limit) {
-  pvectors <- lapply(seurat_objs, function(x) pvector$new(x@assays$RNA@var.features))
+
+  if(seurat_objs[[1]]@version == "5.0.1") {
+    pvectors <- lapply(seurat_objs, function(x) pvector$new(Seurat::VariableFeatures(x)))
+  } else {
+    pvectors <- lapply(seurat_objs, function(x) pvector$new(x@assays$RNA@var.features))
+  }
   selected <- c()
   i <- 1
   while (TRUE) {
