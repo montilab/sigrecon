@@ -9,12 +9,13 @@ silggm.adj(
   method = "B_NW_SL",
   wgcna_power = TRUE,
   pval_filter = TRUE,
+  pos_filter = TRUE,
   pval = 0.05,
   igraph = TRUE
 )
 }
 \arguments{
-\item{mat}{A matrix}
+\item{mat}{A matrix with rows as features and columns as genes}
 
 \item{method}{Correlation estimation method for SILGGM. Default "B_NW_SL".
 See \code{\link[SILGGM:SILGGM]{SILGGM::SILGGM()}} for options.}
@@ -23,6 +24,8 @@ See \code{\link[SILGGM:SILGGM]{SILGGM::SILGGM()}} for options.}
 Default TRUE.}
 
 \item{pval_filter}{Logical indicating whether to filter edges by p-value. Default TRUE.}
+
+\item{pos_filter}{Logical indicating whether to filter out negative edges. Default TRUE.}
 
 \item{pval}{Significance threshold for edge filtering. Default 0.05.}
 
@@ -43,6 +46,7 @@ with optional p-value filtering, WGCNA power transformation, and igraph conversi
 The function performs these steps:
 \enumerate{
 \item Estimates sparse partial correlations using SILGGM
+\item Optionally filters edges by non-negativity
 \item Optionally filters edges by p-value significance
 \item Optionally applies WGCNA soft thresholding
 \item Converts to igraph object if requested

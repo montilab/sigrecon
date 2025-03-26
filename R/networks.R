@@ -185,7 +185,7 @@ wgcna.power <- function(cor_mat,
   doParallel::registerDoParallel(cores=cores)
 
   # Pick soft threshold via scale-free fit
-  sft <- WGCNA::pickSoftThreshold.fromSimilarity(similarity=cor_mat, blockSize=NULL)
+  sft <- WGCNA::pickSoftThreshold.fromSimilarity(similarity=cor_mat)
 
   # Check selected power
   beta <- sft.check(sft)
@@ -300,12 +300,13 @@ wgcna.adj <- function(eset,
 #' This function performs sparse partial correlation estimation using the SILGGM package,
 #' with optional p-value filtering, WGCNA power transformation, and igraph conversion.
 #'
-#' @param mat A matrix
+#' @param mat A matrix with rows as features and columns as genes
 #' @param method Correlation estimation method for SILGGM. Default "B_NW_SL".
 #'               See [SILGGM::SILGGM()] for options.
 #' @param wgcna_power Logical indicating whether to apply WGCNA soft power thresholding.
 #'                    Default TRUE.
 #' @param pval_filter Logical indicating whether to filter edges by p-value. Default TRUE.
+#' @param pos_filter Logical indicating whether to filter out negative edges. Default TRUE.
 #' @param pval Significance threshold for edge filtering. Default 0.05.
 #' @param igraph Logical indicating whether to return an igraph object. Default TRUE.
 #'
@@ -315,9 +316,10 @@ wgcna.adj <- function(eset,
 #'
 #' @details The function performs these steps:
 #' 1. Estimates sparse partial correlations using SILGGM
-#' 2. Optionally filters edges by p-value significance
-#' 3. Optionally applies WGCNA soft thresholding
-#' 4. Converts to igraph object if requested
+#' 2. Optionally filters edges by non-negativity
+#' 3. Optionally filters edges by p-value significance
+#' 4. Optionally applies WGCNA soft thresholding
+#' 5. Converts to igraph object if requested
 #'
 #' @importFrom SILGGM SILGGM
 #' @importFrom igraph graph_from_adjacency_matrix
@@ -326,12 +328,17 @@ silggm.adj <- function(mat,
                        method = "B_NW_SL",
                        wgcna_power = TRUE,
                        pval_filter = TRUE,
+                       pos_filter = TRUE,
                        pval = 0.05,
                        igraph = TRUE) {
   stopifnot(is(mat, "matrix"))
 
   silggm_res <- SILGGM::SILGGM(mat, method = method)
   silggm_mat <- as.matrix(silggm_res$partialCor)
+
+  if(pos_filter) {
+    silggm_mat[silggm_mat <= 0] <- 0
+  }
 
   if (pval_filter) {
     silggm_pval <- as.matrix(silggm_res$p_partialCor)
@@ -340,11 +347,13 @@ silggm.adj <- function(mat,
   }
 
   if (wgcna_power) {
+    # WGCNA scale free estimation requires positive edges only.
+    silggm_mat[silggm_mat <= 0] <- 0
     silggm_mat <- wgcna.power(silggm_mat)
   }
 
   if(igraph) {
-    adj <- igraph::graph_from_adjacency_matrix(silggm_mat, weighted=TRUE, mode="undirected")
+    silggm_mat <- igraph::graph_from_adjacency_matrix(silggm_mat, weighted=TRUE, mode="undirected")
   }
   return(silggm_mat)
 }
