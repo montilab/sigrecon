@@ -8,6 +8,9 @@ rwr_mat(
   ig,
   seeds,
   restart = 0.75,
+  avg_p = FALSE,
+  avg_p_vals = c(0.001, 0.1),
+  avg_p_length = 5,
   epsilon = NULL,
   normalize = c("row", "column", "laplacian", "none")
 )
@@ -15,9 +18,15 @@ rwr_mat(
 \arguments{
 \item{ig}{igraph object}
 
-\item{seeds}{Gene Symbol(s) that are seed nodes for the random walk. If random walk is to be done on multiple genes individually or multiple sets of genes, they should be in seperate elements of the list.}
+\item{seeds}{Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes}
 
-\item{restart}{Numeric, Probability of restarting at the seed nodes}
+\item{restart}{A numeric specifying the probability of restarting at the seed nodes}
+
+\item{avg_p}{A boolean specifying whether to ensemble random walk results over a range of restart values}
+
+\item{avg_p_vals}{A numeric vector specifying the start and end of a geometric sequence to explore restart values}
+
+\item{avg_p_length}{A numeric specifying how many values within \code{avg_p_vals} to include in the ensemble}
 
 \item{epsilon}{Exploration factor}
 

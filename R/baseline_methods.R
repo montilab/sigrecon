@@ -115,12 +115,22 @@ seed_matrix <- function(ig, seeds) {
 #' Perform a random walk on an igraph given seeds, return stationary probabilities
 #'
 #' @param ig igraph object
-#' @param seeds Gene Symbol(s) that are seed nodes for the random walk. If random walk is to be done on multiple genes individually or multiple sets of genes, they should be in seperate elements of the list.
-#' @param restart Numeric, Probability of restarting at the seed nodes
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes
+#' @param restart A numeric specifying the probability of restarting at the seed nodes
+#' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
+#' @param avg_p_vals A numeric vector specifying the start and end of a geometric sequence to explore restart values
+#' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
 #' @param epsilon Exploration factor
 #' @param normalize Normalization strategy
 #' @return (n_gene, n_seeds) matrix of stationary probability values
-rwr_mat <- function(ig, seeds, restart = 0.75, epsilon = NULL, normalize = c("row", "column", "laplacian", "none")) {
+rwr_mat <- function(ig,
+                    seeds,
+                    restart = 0.75,
+                    avg_p = FALSE,
+                    avg_p_vals = c(1e-3, 1e-1),
+                    avg_p_length = 5,
+                    epsilon = NULL,
+                    normalize = c("row", "column", "laplacian", "none")) {
   # Assumes all seeds are present in ig graph
   # browser()
   stopifnot(is(ig, "igraph"))
@@ -130,9 +140,25 @@ rwr_mat <- function(ig, seeds, restart = 0.75, epsilon = NULL, normalize = c("ro
 
   seed_mat <- seed_matrix(ig, seeds)
 
-  rwr <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart, epsilon = epsilon, normalize = normalize)
+  if (avg_p) {
+    end <- avg_p_vals[2]
+    start <- avg_p_vals[1]
+    ratio <- (end / start)^(1 / (avg_p_length - 1))
+    avg_p_seq <- start * ratio^(seq(0, avg_p_length - 1))
 
-  return(rwr)
+    mat <- matrix(0, nrow = nrow(seed_mat), ncol = ncol(seed_mat))
+    rownames(mat) <- rownames(seed_mat)
+    colnames(mat) <- colnames(seed_mat)
+
+    for (restart in avg_p_seq) {
+      rwr <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart, epsilon = epsilon, normalize = normalize)
+      mat <- mat + rwr
+    }
+    mat <- mat/avg_p_length
+  }
+  mat <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart, epsilon = epsilon, normalize = normalize)
+
+  return(mat)
 }
 
 
@@ -242,32 +268,39 @@ network_sig_path <- function(path,
 
 #' Finds a simulated network signature
 #'
-#' @param net network given as an igraph
-#' @param seeds single gene string or vector of gene strings or named list of sets of gene symbols
-#' @param sig String, network signature type: random walk, correlation, nearest neighbor
-#' @param p Numeric, restart value for random walk, default=0.1
-#' @param limit number of genes to be included in the network signature, default=30
+#' @param ig network given as an igraph
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
+#' @param sig A string specifying the type of network signature: random walk, correlation etc.
+#' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
+#' @param avg_p_vals A numeric vector specifying the start and end of a geometric sequence to explore restart values.
+#' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
+#' @param p A numeric specifying the restart value for random walk, default=0.1
+#' @param limit A numeric specifying the number of genes to be included in the network signature, default=30
 #'
 #' @return vector of gene strings
 #'
 #' @importFrom igraph as_adj
 #' @export
-network_sig <- function(net,
+network_sig <- function(ig,
                         seeds,
                         sig = c("corr", "rwr"),
+                        avg_p = FALSE,
+                        avg_p_vals = c(1e-4, 1e-1),
+                        avg_p_length = 5,
                         p = 0.1,
                         limit = 30) {
-  stopifnot(is(seeds, "character")| is(seeds, "list"))
+  stopifnot(is(seeds, "character") | is(seeds, "list"))
+  stopifnot(is(ig, "igraph"))
 
   if (sig == "corr") {
-    if ("weight" %in% list.edge.attributes(net)) {
-      cor_mat <- igraph::as_adj(net, attr = "weight")
+    if ("weight" %in% list.edge.attributes(ig)) {
+      cor_mat <- igraph::as_adj(ig, attr = "weight")
     } else {
-      cor_mat <- igraph::as_adj(net, attr = NULL)
+      cor_mat <- igraph::as_adj(ig, attr = NULL)
     }
     net_sig <- correlated_sigs(corr_mat = cor_mat, seeds = seeds, limit = limit)
   } else if (sig == "rwr") {
-    mat <- rwr_mat(net, seeds, restart = p)
+    mat <- rwr_mat(ig, seeds, avg_p = avg_p, avg_p_vals = avg_p_vals, avg_p_length = avg_p_length, restart = p)
     net_sig <- top_n_mat(mat, limit = limit)
   }
   return(net_sig)

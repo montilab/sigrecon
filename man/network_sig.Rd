@@ -4,18 +4,33 @@
 \alias{network_sig}
 \title{Finds a simulated network signature}
 \usage{
-network_sig(net, seeds, sig = c("corr", "rwr"), p = 0.1, limit = 30)
+network_sig(
+  ig,
+  seeds,
+  sig = c("corr", "rwr"),
+  avg_p = FALSE,
+  avg_p_vals = c(1e-04, 0.1),
+  avg_p_length = 5,
+  p = 0.1,
+  limit = 30
+)
 }
 \arguments{
-\item{net}{network given as an igraph}
+\item{ig}{network given as an igraph}
 
-\item{seeds}{single gene string or vector of gene strings or named list of sets of gene symbols}
+\item{seeds}{Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.}
 
-\item{sig}{String, network signature type: random walk, correlation, nearest neighbor}
+\item{sig}{A string specifying the type of network signature: random walk, correlation etc.}
 
-\item{p}{Numeric, restart value for random walk, default=0.1}
+\item{avg_p}{A boolean specifying whether to ensemble random walk results over a range of restart values}
 
-\item{limit}{number of genes to be included in the network signature, default=30}
+\item{avg_p_vals}{A numeric vector specifying the start and end of a geometric sequence to explore restart values.}
+
+\item{avg_p_length}{A numeric specifying how many values within \code{avg_p_vals} to include in the ensemble}
+
+\item{p}{A numeric specifying the restart value for random walk, default=0.1}
+
+\item{limit}{A numeric specifying the number of genes to be included in the network signature, default=30}
 }
 \value{
 vector of gene strings
