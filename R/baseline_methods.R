@@ -279,7 +279,7 @@ network_sig_path <- function(path,
 #'
 #' @return vector of gene strings
 #'
-#' @importFrom igraph as_adj
+#' @importFrom igraph as_adjacency_matrix
 #' @export
 network_sig <- function(ig,
                         seeds,
@@ -294,9 +294,9 @@ network_sig <- function(ig,
 
   if (sig == "corr") {
     if ("weight" %in% list.edge.attributes(ig)) {
-      cor_mat <- igraph::as_adj(ig, attr = "weight")
+      cor_mat <- igraph::as_adjacency_matrix(ig, attr = "weight")
     } else {
-      cor_mat <- igraph::as_adj(ig, attr = NULL)
+      cor_mat <- igraph::as_adjacency_matrix(ig, attr = NULL)
     }
     net_sig <- correlated_sigs(corr_mat = cor_mat, seeds = seeds, limit = limit)
   } else if (sig == "rwr") {
