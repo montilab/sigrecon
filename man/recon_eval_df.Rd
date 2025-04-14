@@ -9,13 +9,15 @@ recon_eval_df(
   seed_name,
   source_sigs,
   dest_sigs,
-  split = 0,
-  experiment = c("CCLE", "perturb-seq", "drugmatrix", "sciplex"),
   restart = 0.75,
+  avg_p = FALSE,
+  avg_p_vals = c(1e-04, 0.1),
+  avg_p_length = 5,
   recon = TRUE,
   use_weights = TRUE,
   weights.pwr = 1,
   normalize = c("row", "column", "laplacian"),
+  save_path = "",
   limit = 30
 )
 }
@@ -28,11 +30,13 @@ recon_eval_df(
 
 \item{dest_sigs}{list of genesets (the ground truth)}
 
-\item{split}{split number for CCLE TCGA experiment}
-
-\item{experiment}{benchmarking task type}
-
 \item{restart}{restart value}
+
+\item{avg_p}{A boolean specifying whether to ensemble random walk results over a range of restart values}
+
+\item{avg_p_vals}{A numeric vector specifying the start and end of a geometric sequence to explore restart values.}
+
+\item{avg_p_length}{A numeric specifying how many values within \code{avg_p_vals} to include in the ensemble}
 
 \item{recon}{Boolean indicating whether recontextualization occurs}
 
@@ -41,6 +45,8 @@ recon_eval_df(
 \item{weights.pwr}{Power to raise weights to}
 
 \item{normalize}{Normalization strategy to employ}
+
+\item{save_path}{file path to save recontextualized signatures}
 
 \item{limit}{number of genes to be included in the network signature, default=30}
 }

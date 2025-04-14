@@ -9,7 +9,7 @@ rwr_mat(
   seeds,
   restart = 0.75,
   avg_p = FALSE,
-  avg_p_vals = c(0.001, 0.1),
+  avg_p_vals = c(1e-04, 0.1),
   avg_p_length = 5,
   epsilon = NULL,
   normalize = c("row", "column", "laplacian", "none")
