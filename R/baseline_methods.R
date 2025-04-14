@@ -127,7 +127,7 @@ rwr_mat <- function(ig,
                     seeds,
                     restart = 0.75,
                     avg_p = FALSE,
-                    avg_p_vals = c(1e-3, 1e-1),
+                    avg_p_vals = c(1e-4, 1e-1),
                     avg_p_length = 5,
                     epsilon = NULL,
                     normalize = c("row", "column", "laplacian", "none")) {
@@ -150,13 +150,14 @@ rwr_mat <- function(ig,
     rownames(mat) <- rownames(seed_mat)
     colnames(mat) <- colnames(seed_mat)
 
-    for (restart in avg_p_seq) {
-      rwr <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart, epsilon = epsilon, normalize = normalize)
+    for (restart_val in avg_p_seq) {
+      rwr <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart_val, epsilon = epsilon, normalize = normalize)
       mat <- mat + rwr
     }
     mat <- mat/avg_p_length
+  } else {
+    mat <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart, epsilon = epsilon, normalize = normalize)
   }
-  mat <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart, epsilon = epsilon, normalize = normalize)
 
   return(mat)
 }
