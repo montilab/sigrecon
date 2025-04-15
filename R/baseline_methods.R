@@ -118,7 +118,7 @@ seed_matrix <- function(ig, seeds) {
 #' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes
 #' @param restart A numeric specifying the probability of restarting at the seed nodes
 #' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
-#' @param avg_p_vals A numeric vector specifying the start and end of a geometric sequence to explore restart values
+#' @param avg_p_vals A numeric vector specifying the start and end of a arithmetic sequence to explore restart values
 #' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
 #' @param epsilon Exploration factor
 #' @param normalize Normalization strategy
@@ -143,8 +143,7 @@ rwr_mat <- function(ig,
   if (avg_p) {
     end <- avg_p_vals[2]
     start <- avg_p_vals[1]
-    ratio <- (end / start)^(1 / (avg_p_length - 1))
-    avg_p_seq <- start * ratio^(seq(0, avg_p_length - 1))
+    avg_p_seq <- seq(start, end, length.out = avg_p_length)
 
     mat <- matrix(0, nrow = nrow(seed_mat), ncol = ncol(seed_mat))
     rownames(mat) <- rownames(seed_mat)
@@ -273,7 +272,7 @@ network_sig_path <- function(path,
 #' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
 #' @param sig A string specifying the type of network signature: random walk, correlation etc.
 #' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
-#' @param avg_p_vals A numeric vector specifying the start and end of a geometric sequence to explore restart values.
+#' @param avg_p_vals A numeric vector specifying the start and end of a arithmetic sequence to explore restart values.
 #' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
 #' @param p A numeric specifying the restart value for random walk, default=0.1
 #' @param limit A numeric specifying the number of genes to be included in the network signature. Default is 30.

@@ -24,7 +24,7 @@ network_sig(
 
 \item{avg_p}{A boolean specifying whether to ensemble random walk results over a range of restart values}
 
-\item{avg_p_vals}{A numeric vector specifying the start and end of a geometric sequence to explore restart values.}
+\item{avg_p_vals}{A numeric vector specifying the start and end of a arithmetic sequence to explore restart values.}
 
 \item{avg_p_length}{A numeric specifying how many values within \code{avg_p_vals} to include in the ensemble}
 
