@@ -14,8 +14,9 @@ library(tidyverse)
 #' @param use_weights Boolean indicating whether to use weights in the KS Test
 #' @param weights.pwr Power to raise weights to
 #' @param normalize Normalization strategy to employ
+#' @param save Boolean indicating whether to save recontextualized signatures
 #' @param save_path file path to save recontextualized signatures
-#' @param limit number of genes to be included in the network signature, default=30
+#' @param limit Number of genes to keep in the output, or a vector of lengths
 #'
 #' @export
 recon_eval_df <- function(ig,
@@ -30,6 +31,7 @@ recon_eval_df <- function(ig,
                           use_weights = TRUE,
                           weights.pwr = 1,
                           normalize = c("row", "column", "laplacian"),
+                          save = FALSE,
                           save_path = "",
                           limit = 30) {
 
@@ -66,7 +68,9 @@ recon_eval_df <- function(ig,
                               avg_p_length = avg_p_length,
                               p = restart,
                               limit = limit)
-    saveRDS(recon_sigs, file.path(save_path, paste0(seed_name,".rds")))
+    if(save) {
+      saveRDS(recon_sigs, file.path(save_path, paste0(seed_name,".rds")))
+    }
 
     # Jaccard Similarity
     jacc_source_dest <- v.jaccard(recon_sigs, dest_short_sigs)

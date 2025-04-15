@@ -9,9 +9,9 @@ correlated_sigs(corr_mat, seeds, limit = 30)
 \arguments{
 \item{corr_mat}{Correlation Matrix}
 
-\item{seeds}{Seed or List of seeds}
+\item{seeds}{Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.}
 
-\item{limit}{Numeric indicating the number of genes to be returned}
+\item{limit}{Number of genes to keep in the output, or a vector of lengths. Default is 30.}
 }
 \description{
 Recontextualize seed signatures with correlation based neighbors

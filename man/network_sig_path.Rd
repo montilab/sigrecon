@@ -9,13 +9,13 @@ network_sig_path(path, seeds, sig = c("corr", "rwr"), p = 0.1, limit = 30)
 \arguments{
 \item{path}{A character string specifying the file path to the network object (RDS file).}
 
-\item{seeds}{A character vector or list of seed genes/nodes.}
+\item{seeds}{Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.}
 
 \item{sig}{The signature generation method. Either "corr" for correlation-based or "rwr" for random walk with restart. Default is c("corr", "rwr").}
 
 \item{p}{A numeric value specifying the restart probability for random walk. Default is 0.1.}
 
-\item{limit}{An integer specifying the maximum number of nodes to include in the signature. Default is 30.}
+\item{limit}{Number of genes to keep in the output, or a vector of lengths. Default is 30.}
 }
 \value{
 A list of network signatures. If the input is a single network, returns a single signature list. If the input is a list of networks, returns a list of signature lists.

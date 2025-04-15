@@ -11,7 +11,7 @@ top_n_mat(mat, limit = 30)
 \arguments{
 \item{mat}{(n_gene, n_seed) matrix of stationary probability values from rwr_mat}
 
-\item{limit}{Number of genes to keep in the output, or a vector of lengths}
+\item{limit}{Number of genes to keep in the output, or a vector of lengths. Default is 30.}
 }
 \value{
 A named list of genesets. Each list element is the recontextualized signature for that seed.

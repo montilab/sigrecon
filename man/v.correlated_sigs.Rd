@@ -11,7 +11,7 @@ v.correlated_sigs(corr_mats, seeds, limit = 30)
 
 \item{seeds}{List of seeds, length has to match corr_mats}
 
-\item{limit}{Numeric indicating the number of genes to be returned}
+\item{limit}{Number of genes to keep in the output, or a vector of lengths. Default is 30.}
 }
 \description{
 Recontextualize seed signatures with correlation based neighbors

@@ -17,6 +17,7 @@ recon_eval_df(
   use_weights = TRUE,
   weights.pwr = 1,
   normalize = c("row", "column", "laplacian"),
+  save = FALSE,
   save_path = "",
   limit = 30
 )
@@ -46,9 +47,11 @@ recon_eval_df(
 
 \item{normalize}{Normalization strategy to employ}
 
+\item{save}{Boolean indicating whether to save recontextualized signatures}
+
 \item{save_path}{file path to save recontextualized signatures}
 
-\item{limit}{number of genes to be included in the network signature, default=30}
+\item{limit}{Number of genes to keep in the output, or a vector of lengths}
 }
 \description{
 Evaluate recontextualized signatures

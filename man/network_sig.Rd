@@ -30,7 +30,7 @@ network_sig(
 
 \item{p}{A numeric specifying the restart value for random walk, default=0.1}
 
-\item{limit}{A numeric specifying the number of genes to be included in the network signature, default=30}
+\item{limit}{A numeric specifying the number of genes to be included in the network signature. Default is 30.}
 }
 \value{
 vector of gene strings

@@ -167,7 +167,7 @@ rwr_mat <- function(ig,
 #' This is the recontextualized signature.
 #' If doing ks.test, you don't need to find the top_n. Just find ks.test(original, recontextualized ranking) before and after.
 #' @param mat (n_gene, n_seed) matrix of stationary probability values from rwr_mat
-#' @param limit Number of genes to keep in the output, or a vector of lengths
+#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
 #' @return A named list of genesets. Each list element is the recontextualized signature for that seed.
 top_n_mat <- function(mat, limit = 30) {
   top_n <- list()
@@ -237,10 +237,10 @@ rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "la
 #' This function reads a network object from a file path and generates network signatures based on provided seeds.
 #'
 #' @param path A character string specifying the file path to the network object (RDS file).
-#' @param seeds A character vector or list of seed genes/nodes.
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
 #' @param sig The signature generation method. Either "corr" for correlation-based or "rwr" for random walk with restart. Default is c("corr", "rwr").
 #' @param p A numeric value specifying the restart probability for random walk. Default is 0.1.
-#' @param limit An integer specifying the maximum number of nodes to include in the signature. Default is 30.
+#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
 #'
 #' @return A list of network signatures. If the input is a single network, returns a single signature list. If the input is a list of networks, returns a list of signature lists.
 #'
@@ -276,7 +276,7 @@ network_sig_path <- function(path,
 #' @param avg_p_vals A numeric vector specifying the start and end of a geometric sequence to explore restart values.
 #' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
 #' @param p A numeric specifying the restart value for random walk, default=0.1
-#' @param limit A numeric specifying the number of genes to be included in the network signature, default=30
+#' @param limit A numeric specifying the number of genes to be included in the network signature. Default is 30.
 #'
 #' @return vector of gene strings
 #'
@@ -311,8 +311,8 @@ network_sig <- function(ig,
 #' Recontextualize seed signatures with correlation based neighbors
 #'
 #' @param corr_mat Correlation Matrix
-#' @param seeds Seed or List of seeds
-#' @param limit Numeric indicating the number of genes to be returned
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
+#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
 correlated_sigs <- function(corr_mat, seeds, limit = 30) {
 
   # Seeds can be a single character vector. In that case need to list-ify it.
@@ -350,7 +350,7 @@ correlated_sigs <- function(corr_mat, seeds, limit = 30) {
 #'
 #' @param corr_mats List of correlation matrices
 #' @param seeds List of seeds, length has to match corr_mats
-#' @param limit Numeric indicating the number of genes to be returned
+#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
 v.correlated_sigs <- function(corr_mats, seeds, limit = 30) {
   # browser()
   sigs <- list()
