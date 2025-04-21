@@ -335,6 +335,7 @@ silggm.adj <- function(mat,
 
   silggm_res <- SILGGM::SILGGM(mat, method = method)
   silggm_mat <- as.matrix(silggm_res$partialCor)
+  rownames(silggm_mat) <- colnames(silggm_mat) <- colnames(mat)
 
   if(pos_filter) {
     silggm_mat[silggm_mat <= 0] <- 0
