@@ -7,9 +7,9 @@
 v.ks.test(data_vecs, ref_vecs, use_weights = TRUE, weights.pwr = 1)
 }
 \arguments{
-\item{data_vecs}{A list of data vectors, each representing a gene.}
+\item{data_vecs}{A named list of genesets (observations), each representing a perturbation.}
 
-\item{ref_vecs}{A list of reference vectors, each representing a gene.}
+\item{ref_vecs}{A named list of genesets (reference), each representing a perturbation.}
 
 \item{use_weights}{Logical, whether to use weights in the KS test. Default is TRUE.}
 
@@ -17,8 +17,8 @@ v.ks.test(data_vecs, ref_vecs, use_weights = TRUE, weights.pwr = 1)
 }
 \value{
 A list containing two elements:
-\item{D_stats}{A numeric vector of D statistics for each gene}
-\item{p_vals}{A numeric vector of p-values for each gene}
+\item{D_stats}{A numeric vector of D statistics for each perturbation}
+\item{p_vals}{A numeric vector of p-values for each perturbation}
 }
 \description{
 This function performs a vectorized Kolmogorov-Smirnov test on multiple gene vectors.
@@ -26,7 +26,7 @@ This function performs a vectorized Kolmogorov-Smirnov test on multiple gene vec
 \details{
 This function applies the Kolmogorov-Smirnov test to multiple gene vectors simultaneously.
 It compares each data vector to its corresponding reference vector and calculates
-the D statistic and p-value for each gene.
+the D statistic and p-value for each perturbation
 
 If \code{use_weights} is TRUE, the function applies weights to the KS test, with weights
 ranging from 1 to -1 across the ranks.

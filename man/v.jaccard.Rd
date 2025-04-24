@@ -7,9 +7,9 @@
 v.jaccard(sigs1, sigs2)
 }
 \arguments{
-\item{sigs1}{A list of sets (vectors)}
+\item{sigs1}{A named list of genesets (vectors)}
 
-\item{sigs2}{A list of sets (vectors), must be the same length as sigs1}
+\item{sigs2}{A named list of genesets (vectors)}
 }
 \value{
 A vector of Jaccard similarity scores

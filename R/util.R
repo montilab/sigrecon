@@ -177,25 +177,36 @@ seurat_common_var_genes <- function(seurat_objs, limit) {
 #'
 #' This function performs a vectorized Kolmogorov-Smirnov test on multiple gene vectors.
 #'
-#' @param data_vecs A list of data vectors, each representing a gene.
-#' @param ref_vecs A list of reference vectors, each representing a gene.
+#' @param data_vecs A named list of genesets (observations), each representing a perturbation.
+#' @param ref_vecs A named list of genesets (reference), each representing a perturbation.
 #' @param use_weights Logical, whether to use weights in the KS test. Default is TRUE.
 #' @param weights.pwr Numeric, the power to which weights are raised. Default is 1.
 #'
 #' @return A list containing two elements:
-#'   \item{D_stats}{A numeric vector of D statistics for each gene}
-#'   \item{p_vals}{A numeric vector of p-values for each gene}
+#'   \item{D_stats}{A numeric vector of D statistics for each perturbation}
+#'   \item{p_vals}{A numeric vector of p-values for each perturbation}
 #'
 #' @details
 #' This function applies the Kolmogorov-Smirnov test to multiple gene vectors simultaneously.
 #' It compares each data vector to its corresponding reference vector and calculates
-#' the D statistic and p-value for each gene.
+#' the D statistic and p-value for each perturbation
 #'
 #' If `use_weights` is TRUE, the function applies weights to the KS test, with weights
 #' ranging from 1 to -1 across the ranks.
 #'
 #' @export
 v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
+
+  if(!setequal(names(data_vecs), names(ref_vecs))) {
+    print("Filtering sets to matching pairs.")
+    shared_vecs <- intersect(names(data_vecs), names(ref_vecs))
+    removed_vecs <- setdiff(names(data_vecs), names(ref_vecs))
+    print(paste0("Removed ", length(removed_vecs), " perturbations."))
+    data_vecs <- data_vecs[shared_vecs]
+    ref_vecs <- ref_vecs[shared_vecs]
+  }
+
+  stopifnot(all.equal(names(data_vecs), names(ref_vecs)))
 
   n_ranks <- length(ref_vecs[[1]])
   n_genes <- length(data_vecs)
@@ -204,13 +215,13 @@ v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
   ps <- numeric(length = n_genes)
 
   i <- 1
-  for (gene in names(ref_vecs)) {
-    ref_vec <- ref_vecs[[gene]]
-    data_vec <- data_vecs[[gene]]
+  for (pb in names(ref_vecs)) {
+    ref_vec <- ref_vecs[[pb]]
+    data_vec <- data_vecs[[pb]]
     ranks <- match(x=data_vec, table=ref_vec)
 
     if (all(is.na(ranks))) {
-      print(paste0(gene, " has no ranks."))
+      print(paste0(pb, " has no ranks."))
       Ds[[i]] <- 0
       ps[[i]] <- 0
       next
@@ -325,14 +336,25 @@ kstest <- function(n.x,
 
 #' Calculate Jaccard Similarity for Multiple Pairs of Sets
 #'
-#' @param sigs1 A list of sets (vectors)
-#' @param sigs2 A list of sets (vectors), must be the same length as sigs1
+#' @param sigs1 A named list of genesets (vectors)
+#' @param sigs2 A named list of genesets (vectors)
 #'
 #' @return A vector of Jaccard similarity scores
 #'
 #' @export
 v.jaccard <- function(sigs1, sigs2) {
-  stopifnot(length(sigs1)==length(sigs2))
+
+  if(!setequal(names(sigs1), names(sigs2))) {
+    print("Filtering sets to matching pairs.")
+    shared_vecs <- intersect(names(sigs1), names(sigs2))
+    removed_vecs <- setdiff(names(sigs1), names(sigs2))
+    print(paste0("Removed ", length(removed_vecs), " perturbations."))
+    sigs1 <- sigs1[shared_vecs]
+    sigs2 <- sigs2[shared_vecs]
+  }
+
+  stopifnot(all.equal(names(sigs1), names(sigs2)))
+
   sims <- c()
   for(i in seq_along(sigs1)) {
     sim <- jaccard(sigs1[[i]], sigs2[[i]])
@@ -387,8 +409,17 @@ jaccard_matrix <- function(sets) {
 #'
 #' @export
 count_displaced_genes <- function(recon_sig, seed_sig) {
-  # Two lists of genesets should have the same names
-  stopifnot(all(names(recon_sig) == names(seed_sig)))
+
+  if(!setequal(names(recon_sig), names(seed_sig))) {
+    print("Filtering sets to matching pairs.")
+    shared_vecs <- intersect(names(recon_sig), names(seed_sig))
+    removed_vecs <- setdiff(names(recon_sig), names(seed_sig))
+    print(paste0("Removed ", length(removed_vecs), " perturbations."))
+    recon_sig <- recon_sig[shared_vecs]
+    seed_sig <- seed_sig[shared_vecs]
+  }
+
+  stopifnot(all.equal(names(recon_sig), names(seed_sig)))
 
   displaced <- list()
   for (name in names(seed_sig)) {
