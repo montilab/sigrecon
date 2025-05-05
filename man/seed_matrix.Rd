@@ -4,12 +4,14 @@
 \alias{seed_matrix}
 \title{Create (gene x seed) prior matrix based on seed signatures.}
 \usage{
-seed_matrix(ig, seeds)
+seed_matrix(ig, seeds, bootstrap = FALSE)
 }
 \arguments{
 \item{ig}{An igraph object representing the network that has the seed genes as vertices}
 
 \item{seeds}{Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.}
+
+\item{bootstrap}{A boolean specifying whether to use empirical distributions of stationary values to find significant genes.}
 }
 \value{
 A binary matrix where rows represent genes in the graph and columns represent seed sets.

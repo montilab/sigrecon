@@ -4,7 +4,17 @@
 \alias{network_sig_path}
 \title{Generate Network Signatures from a Path}
 \usage{
-network_sig_path(path, seeds, sig = c("corr", "rwr"), p = 0.1, limit = 30)
+network_sig_path(
+  path,
+  seeds,
+  sig = c("corr", "rwr"),
+  avg_p = FALSE,
+  avg_p_vals = c(1e-04, 0.1),
+  avg_p_length = 5,
+  p = 0.1,
+  bootstrap = FALSE,
+  limit = 30
+)
 }
 \arguments{
 \item{path}{A character string specifying the file path to the network object (RDS file).}
@@ -15,7 +25,13 @@ network_sig_path(path, seeds, sig = c("corr", "rwr"), p = 0.1, limit = 30)
 
 \item{p}{A numeric value specifying the restart probability for random walk. Default is 0.1.}
 
+\item{bootstrap}{A boolean specifying whether to use empirical distributions of stationary values to find significant genes.}
+
 \item{limit}{Number of genes to keep in the output, or a vector of lengths. Default is 30.}
+
+\item{n_bootstraps}{A numeric specifying the number of bootstraps to perform.}
+
+\item{n_cores}{A numeric indicating the number of cores for multi-core processing.}
 }
 \value{
 A list of network signatures. If the input is a single network, returns a single signature list. If the input is a list of networks, returns a list of signature lists.

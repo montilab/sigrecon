@@ -13,6 +13,9 @@ recon_eval_df(
   avg_p = FALSE,
   avg_p_vals = c(1e-04, 0.1),
   avg_p_length = 5,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  n_cores = 1,
   recon = TRUE,
   use_weights = TRUE,
   weights.pwr = 1,
@@ -38,6 +41,12 @@ recon_eval_df(
 \item{avg_p_vals}{A numeric vector specifying the start and end of a geometric sequence to explore restart values.}
 
 \item{avg_p_length}{A numeric specifying how many values within \code{avg_p_vals} to include in the ensemble}
+
+\item{bootstrap}{A boolean specifying whether to use empirical distributions of stationary values to find significant genes.}
+
+\item{n_bootstraps}{A numeric specifying the number of bootstraps to perform.}
+
+\item{n_cores}{A numeric indicating the number of cores for multi-core processing.}
 
 \item{recon}{Boolean indicating whether recontextualization occurs}
 

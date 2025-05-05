@@ -28,4 +28,6 @@ Imports:
     purrr,
     tibble,
     Matrix,
-    SILGGM
+    SILGGM,
+    parallel,
+    abind

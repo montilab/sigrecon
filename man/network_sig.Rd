@@ -12,6 +12,9 @@ network_sig(
   avg_p_vals = c(1e-04, 0.1),
   avg_p_length = 5,
   p = 0.1,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  n_cores = 1,
   limit = 30
 )
 }
@@ -29,6 +32,12 @@ network_sig(
 \item{avg_p_length}{A numeric specifying how many values within \code{avg_p_vals} to include in the ensemble}
 
 \item{p}{A numeric specifying the restart value for random walk, default=0.1}
+
+\item{bootstrap}{A boolean specifying whether to use empirical distributions of stationary values to find significant genes.}
+
+\item{n_bootstraps}{A numeric specifying the number of bootstraps to perform.}
+
+\item{n_cores}{A numeric indicating the number of cores for multi-core processing.}
 
 \item{limit}{A numeric specifying the number of genes to be included in the network signature. Default is 30.}
 }

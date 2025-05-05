@@ -11,6 +11,7 @@ rwr_mat(
   avg_p = FALSE,
   avg_p_vals = c(1e-04, 0.1),
   avg_p_length = 5,
+  bootstrap = FALSE,
   epsilon = NULL,
   normalize = c("row", "column", "laplacian", "none")
 )
@@ -27,6 +28,8 @@ rwr_mat(
 \item{avg_p_vals}{A numeric vector specifying the start and end of a arithmetic sequence to explore restart values}
 
 \item{avg_p_length}{A numeric specifying how many values within \code{avg_p_vals} to include in the ensemble}
+
+\item{bootstrap}{A boolean specifying whether to use empirical distributions of stationary values to find significant genes.}
 
 \item{epsilon}{Exploration factor}
 

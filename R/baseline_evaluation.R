@@ -10,6 +10,9 @@ library(tidyverse)
 #' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
 #' @param avg_p_vals A numeric vector specifying the start and end of a geometric sequence to explore restart values.
 #' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
+#' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
+#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
+#' @param n_cores A numeric indicating the number of cores for multi-core processing.
 #' @param recon Boolean indicating whether recontextualization occurs
 #' @param use_weights Boolean indicating whether to use weights in the KS Test
 #' @param weights.pwr Power to raise weights to
@@ -27,6 +30,9 @@ recon_eval_df <- function(ig,
                           avg_p = FALSE,
                           avg_p_vals = c(1e-4, 1e-1),
                           avg_p_length = 5,
+                          bootstrap = FALSE,
+                          n_bootstraps = 1000,
+                          n_cores = 1,
                           recon = TRUE,
                           use_weights = TRUE,
                           weights.pwr = 1,
@@ -67,6 +73,9 @@ recon_eval_df <- function(ig,
                               avg_p_vals = avg_p_vals,
                               avg_p_length = avg_p_length,
                               p = restart,
+                              bootstrap = bootstrap,
+                              n_bootstraps = n_bootstraps,
+                              n_cores = n_cores,
                               limit = limit)
     if(save) {
       saveRDS(recon_sigs, file.path(save_path, paste0(seed_name,".rds")))
