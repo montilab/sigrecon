@@ -15,7 +15,7 @@ silggm.adj(
 )
 }
 \arguments{
-\item{mat}{A matrix with rows as features and columns as genes}
+\item{mat}{A matrix with rows as samples and columns as genes}
 
 \item{method}{Correlation estimation method for SILGGM. Default "B_NW_SL".
 See \code{\link[SILGGM:SILGGM]{SILGGM::SILGGM()}} for options.}

@@ -264,47 +264,6 @@ rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "la
   return(dfs)
 }
 
-#' Generate Network Signatures from a Path
-#'
-#' This function reads a network object from a file path and generates network signatures based on provided seeds.
-#'
-#' @param path A character string specifying the file path to the network object (RDS file).
-#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
-#' @param sig The signature generation method. Either "corr" for correlation-based or "rwr" for random walk with restart. Default is c("corr", "rwr").
-#' @param p A numeric value specifying the restart probability for random walk. Default is 0.1.
-#' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
-#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
-#' @param n_cores A numeric indicating the number of cores for multi-core processing.
-#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
-#'
-#' @return A list of network signatures. If the input is a single network, returns a single signature list. If the input is a list of networks, returns a list of signature lists.
-#'
-#' @export
-network_sig_path <- function(path,
-                             seeds,
-                             sig = c("corr", "rwr"),
-                             avg_p = FALSE,
-                             avg_p_vals = c(1e-4, 1e-1),
-                             avg_p_length = 5,
-                             p = 0.1,
-                             bootstrap = FALSE,
-                             limit = 30) {
-  net_object <- readRDS(path)
-
-  stopifnot(is(seeds, "character")| is(seeds, "list"))
-
-  if (length(seeds) > 1 & is.null(names(seeds))) {
-    stop("Seed signature needs name")
-  }
-
-  if (is(net_object, "igraph")) {
-    sigs <- network_sig(net_object, seeds, sig, avg_p, avg_p_vals, avg_p_length, p, bootstrap, limit)
-  } else if (is(net_object, "list") || is(net_object, "character")) {
-    sigs <- lapply(net_object, function(x) network_sig(x, seeds, sig, avg_p, avg_p_vals, avg_p_length, p, bootstrap, limit))
-  }
-  return(sigs)
-}
-
 
 #' Finds a simulated network signature
 #'

@@ -207,7 +207,7 @@ wgcna.power <- function(cor_mat,
 #' @description
 #' This function constructs a weighted gene co-expression network adjacency matrix using WGCNA.
 #'
-#' @param eset An ExpressionSet or SummarizedExperiment object containing gene expression data.
+#' @param mat A matrix with rows as samples and columns as genes
 #' @param min.sft Minimum scale-free topology fitting index R^2 to pick soft-thresholding power. Default is 0.85.
 #' @param beta Soft-thresholding power. If NULL, it will be automatically selected. Default is NULL.
 #' @param cores Number of CPU cores to use for parallel computing. Default is 1.
@@ -233,7 +233,7 @@ wgcna.power <- function(cor_mat,
 #' @importFrom igraph graph_from_adjacency_matrix
 #'
 #' @export
-wgcna.adj <- function(eset,
+wgcna.adj <- function(mat,
                       min.sft=0.85,
                       beta=NULL,
                       cores=1,
@@ -260,16 +260,9 @@ wgcna.adj <- function(eset,
   # Set parallel computing environment
   doParallel::registerDoParallel(cores=cores)
 
-  # Format expression set into sample x gene matrix
-  if(is(eset,"SummarizedExperiment")) {
-    dat <- t(SummarizedExperiment::assays(eset)[[1]])
-  } else {
-    dat <- t(Biobase::exprs(eset))
-  }
-
   # Pick soft threshold via scale-free fit
   if (is.null(beta)) {
-    sft <- WGCNA::pickSoftThreshold(data=dat,
+    sft <- WGCNA::pickSoftThreshold(data=mat,
                                     corFnc=cor.fn,
                                     RsquaredCut=min.sft,
                                     powerVector=powers)
@@ -280,7 +273,7 @@ wgcna.adj <- function(eset,
   }
 
   # Construct co-expression similarity
-  adj <- WGCNA::adjacency(datExpr=dat,
+  adj <- WGCNA::adjacency(datExpr=mat,
                           power=beta,
                           corFnc=cor.fn,
                           type=cor.type,
@@ -300,7 +293,7 @@ wgcna.adj <- function(eset,
 #' This function performs sparse partial correlation estimation using the SILGGM package,
 #' with optional p-value filtering, WGCNA power transformation, and igraph conversion.
 #'
-#' @param mat A matrix with rows as features and columns as genes
+#' @param mat A matrix with rows as samples and columns as genes
 #' @param method Correlation estimation method for SILGGM. Default "B_NW_SL".
 #'               See [SILGGM::SILGGM()] for options.
 #' @param wgcna_power Logical indicating whether to apply WGCNA soft power thresholding.

@@ -5,7 +5,7 @@
 \title{Construct WGCNA Adjacency Matrix}
 \usage{
 wgcna.adj(
-  eset,
+  mat,
   min.sft = 0.85,
   beta = NULL,
   cores = 1,
@@ -17,7 +17,7 @@ wgcna.adj(
 )
 }
 \arguments{
-\item{eset}{An ExpressionSet or SummarizedExperiment object containing gene expression data.}
+\item{mat}{A matrix with rows as samples and columns as genes}
 
 \item{min.sft}{Minimum scale-free topology fitting index R^2 to pick soft-thresholding power. Default is 0.85.}
 
