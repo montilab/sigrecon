@@ -16,6 +16,8 @@ sciplex.mcf7
 \description{
 DEGs between drug (max dose) and control samples in SciPlex MCF7 cell line data.
 There are 60 drugs and DEGs are EnsemblIDs.
-For each geneset, the \code{up} set represents the top 50 DEGs and the \code{up_full} represents the top 1000 DEGs.
+For each geneset, the \code{up} set represents the top 100 DEGs
+and the \code{up_full} represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+The length of \code{up_full} ranges from 5704 - 7259 based on the perturbation.
 }
 \keyword{datasets}

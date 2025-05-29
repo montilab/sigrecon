@@ -16,6 +16,7 @@ drugmatrix.liver
 \description{
 DEGs between drug (max dose) and control samples in DrugMatrix liver data.
 There are 57 drugs and  DEGs are mouse genes.
-For each geneset, the \code{up} set represents the top 50 DEGs and the \code{up_full} represents the top 1000 DEGs.
+For each geneset, the \code{up} set represents the top 100 DEGs
+and the \code{up_full} represents the full ranked list of 21419 genes ranked by logFC*-log10(adj.p.val).
 }
 \keyword{datasets}
