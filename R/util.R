@@ -173,6 +173,29 @@ seurat_common_var_genes <- function(seurat_objs, limit) {
   return(selected)
 }
 
+#' Check Presence in Bins for Numbers 1-100
+#'
+#' Given a numeric vector with values between 1 and 100, returns a logical vector
+#' indicating whether at least one value falls into each bin of size 10
+#' (i.e., 1-10, 11-20, ..., 91-100).
+#'
+#' @param x Numeric vector. Values should be between 1 and 100.
+#' @return A named logical vector of length 10. Each element is \code{TRUE} if at least one
+#'   value in \code{x} falls into the corresponding bin, otherwise \code{FALSE}.
+#' @examples
+#' vec <- c(3, 15, 27, 45, 58, 99)
+#' bin_presence(vec)
+#' @export
+bin_presence <- function(x) {
+  breaks <- seq(1, 100, by = 10)
+  labels <- paste(breaks, breaks + 9, sep = "-")
+  labels[length(labels)] <- "91-100"
+  bins <- cut(x, breaks = c(breaks, 101), right = FALSE, labels = labels)
+  present <- labels %in% bins
+  names(present) <- labels
+  return(present)
+}
+
 #' Vectorized Kolmogorov-Smirnov Test
 #'
 #' This function performs a vectorized Kolmogorov-Smirnov test on multiple gene vectors.

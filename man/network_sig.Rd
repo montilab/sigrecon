@@ -14,7 +14,6 @@ network_sig(
   p = 0.1,
   bootstrap = FALSE,
   n_bootstraps = 1000,
-  n_cores = 1,
   limit = 30
 )
 }
@@ -36,8 +35,6 @@ network_sig(
 \item{bootstrap}{A boolean specifying whether to use empirical distributions of stationary values to find significant genes.}
 
 \item{n_bootstraps}{A numeric specifying the number of bootstraps to perform.}
-
-\item{n_cores}{A numeric indicating the number of cores for multi-core processing.}
 
 \item{limit}{A numeric specifying the number of genes to be included in the network signature. Default is 30.}
 }

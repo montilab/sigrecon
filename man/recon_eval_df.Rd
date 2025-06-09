@@ -15,7 +15,6 @@ recon_eval_df(
   avg_p_length = 5,
   bootstrap = FALSE,
   n_bootstraps = 1000,
-  n_cores = 1,
   recon = TRUE,
   use_weights = TRUE,
   weights.pwr = 1,
@@ -45,8 +44,6 @@ recon_eval_df(
 \item{bootstrap}{A boolean specifying whether to use empirical distributions of stationary values to find significant genes.}
 
 \item{n_bootstraps}{A numeric specifying the number of bootstraps to perform.}
-
-\item{n_cores}{A numeric indicating the number of cores for multi-core processing.}
 
 \item{recon}{Boolean indicating whether recontextualization occurs}
 

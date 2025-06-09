@@ -6,12 +6,20 @@
 This is the recontextualized signature.
 If doing ks.test, you don't need to find the top_n. Just find ks.test(original, recontextualized ranking) before and after.}
 \usage{
-extract_sig_mat(mat, bootstraps = NULL, percentile = 0.95, limit = 30)
+extract_sig_mat(
+  mat,
+  bootstraps = NULL,
+  sig_bins = NULL,
+  percentile = 0.99,
+  limit = 30
+)
 }
 \arguments{
 \item{mat}{(n_gene, n_seed) matrix of stationary probability values from rwr_mat}
 
-\item{bootstraps}{A 3D matrix specifying results from bootstrapped random walks.}
+\item{bootstraps}{A (n_gene, n_bins*n_bootstraps) matrix specifying results from bootstrapped random walks.}
+
+\item{sig_bins}{A named list describing the length of each perturbation.}
 
 \item{percentile}{A double between 0,1 indicating the proportion cutoff for bootstrap-based signature derivation.}
 

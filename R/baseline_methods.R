@@ -72,45 +72,58 @@ gsva_recon <- function(sce,
 #' @param ig An igraph object representing the network that has the seed genes as vertices
 #' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
 #' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
+#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
 #' @return A binary matrix where rows represent genes in the graph and columns represent seed sets.
 #'
 #' @importFrom igraph V
 seed_matrix <- function(ig,
                         seeds,
-                        bootstrap = FALSE) {
-  # Seeds can be a single character vector. In that case need to list-ify it.
-  if (is(seeds, "character") && length(seeds) == 1) {
-    seeds <- list(seeds)
-    names(seeds) <- seeds
-  } else if (is.null(names(seeds))) {
-    stop("Seed signature needs name")
-  }
+                        bootstrap = FALSE,
+                        n_bootstraps = 1000) {
 
-  n_nodes <- length(seeds)
+  # Seeds can be a single character vector. In that case need to list-ify it.
+  if (is.character(seeds) && length(seeds) == 1) {
+    seeds <- setNames(list(seeds), seeds)
+  }
+  if (is.null(names(seeds))) stop("Seed signature needs name")
+
+  gene_names <- igraph::V(ig)$name
+  n_pbs <- length(seeds)
 
   # Create Seed Matrix
-  mat <- matrix(0, nrow = length(V(ig)), ncol = n_nodes)
-  rownames(mat) <- V(ig)$name
-  colnames(mat) <- names(seeds)
+  if (bootstrap) {
+    bins_filter <- bin_presence(lapply(seeds, function(x) length(x)) %>% unlist)
+    n_bins <- sum(bins_filter)
+    mat <- matrix(0, nrow = length(gene_names), ncol = n_bins * n_bootstraps)
+    rownames(mat) <- gene_names
+    colnames(mat) <- bins_filter %>% which %>% names %>% rep(each = n_bootstraps)
 
-  all_genes <- unname(unlist(seeds))
+    # If bootstrap matrix is (n_genes, n_bootstraps x n_bins)
+    for (present_bin in seq_along(which(bins_filter))) {
+      bin <- which(bins_filter)[present_bin]
+      for (i in 1:n_bootstraps) {
+        # Sample a random set of genes with size sampled between bin end-points
+        last_digit <- i %% 10
+        last_digit <- ifelse(last_digit == 0, 10, last_digit)
 
-  seed_genes_filter <- all(all_genes %in% rownames(mat))
+        sample_size <- (bin - 1) * 10 + last_digit
+        genes <- sample(gene_names, sample_size)
 
-  if (!seed_genes_filter) {
-    print("Seeds Genes are not all contained in the graph.")
-    print("Filtering Seed Genes to those contained in the graph.")
-    seeds <- lapply(seeds, function(x) x[x %in% rownames(mat)])
-  }
-
-  for (seed_name in names(seeds)) {
-    if (bootstrap) {
-      genes <- sample(rownames(mat), length(seeds[[seed_name]]))
-    } else {
-      genes <- seeds[[seed_name]]
+        bin_col <- (present_bin-1) * n_bootstraps + i
+        mat[genes, bin_col] <- 1
+      }
     }
-    mat[genes, seed_name] <- 1
+  } else {
+    mat <- matrix(0, nrow = length(gene_names), ncol = n_pbs)
+    rownames(mat) <- gene_names
+    colnames(mat) <- names(seeds)
+    # If not bootstrap matrix is (n_genes, n_seeds)
+    for (seed_name in names(seeds)) {
+      genes <- seeds[[seed_name]]
+      mat[genes, seed_name] <- 1
+    }
   }
+
   return(mat)
 }
 
@@ -123,6 +136,7 @@ seed_matrix <- function(ig,
 #' @param avg_p_vals A numeric vector specifying the start and end of a arithmetic sequence to explore restart values
 #' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
 #' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
+#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
 #' @param epsilon Exploration factor
 #' @param normalize Normalization strategy
 #' @return (n_gene, n_seeds) matrix of stationary probability values
@@ -133,6 +147,7 @@ rwr_mat <- function(ig,
                     avg_p_vals = c(1e-4, 1e-1),
                     avg_p_length = 5,
                     bootstrap = FALSE,
+                    n_bootstraps = 1000,
                     epsilon = NULL,
                     normalize = c("row", "column", "laplacian", "none")) {
   # Assumes all seeds are present in ig graph
@@ -142,7 +157,7 @@ rwr_mat <- function(ig,
 
   normalize <- match.arg(normalize)
 
-  seed_mat <- seed_matrix(ig, seeds, bootstrap = bootstrap)
+  seed_mat <- seed_matrix(ig, seeds, bootstrap = bootstrap, n_bootstraps = n_bootstraps)
 
   if (avg_p) {
     end <- avg_p_vals[2]
@@ -170,13 +185,15 @@ rwr_mat <- function(ig,
 #' This is the recontextualized signature.
 #' If doing ks.test, you don't need to find the top_n. Just find ks.test(original, recontextualized ranking) before and after.
 #' @param mat (n_gene, n_seed) matrix of stationary probability values from rwr_mat
-#' @param bootstraps A 3D matrix specifying results from bootstrapped random walks.
+#' @param bootstraps A (n_gene, n_bins*n_bootstraps) matrix specifying results from bootstrapped random walks.
+#' @param sig_bins A named list describing the length of each perturbation.
 #' @param percentile A double between 0,1 indicating the proportion cutoff for bootstrap-based signature derivation.
 #' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
 #' @return A named list of genesets. Each list element is the recontextualized signature for that seed.
 extract_sig_mat <- function(mat,
                             bootstraps = NULL,
-                            percentile = 0.95,
+                            sig_bins = NULL,
+                            percentile = 0.99,
                             limit = 30) {
 
   sigs <- list()
@@ -188,14 +205,21 @@ extract_sig_mat <- function(mat,
   }
 
   if(!is.null(bootstraps)) {
-    stopifnot(is(bootstraps, "array"))
-    stopifnot(length(dim(bootstraps)) == 3)
+    # Extract top n signatures based on gene-level comparison with bootstraps
     percentiles <- matrix(NA, nrow = nrow(mat), ncol = ncol(mat))
     colnames(percentiles) <- colnames(mat)
     rownames(percentiles) <- rownames(mat)
+    intervals <- unique(colnames(bootstraps))
     for(i in 1:nrow(mat)) {
       for(j in 1:ncol(mat)) {
-        percentiles[i,j] <- mean(bootstraps[i,j,] <= mat[i,j])
+        # Finding the matching bootstraps depending on the length of pb
+        pb_name <- colnames(percentiles)[j]
+        sig_bin <- sig_bins[[pb_name]]
+        bounds <- t(sapply(strsplit(intervals, "-"), as.numeric))
+        interval <- intervals[which(sig_bin >= bounds[,1] & sig_bin <= bounds[,2])]
+        bootstrap_idx <- which(colnames(bootstraps) == interval)
+
+        percentiles[i,j] <- mean(bootstraps[i,bootstrap_idx] <= mat[i,j])
       }
     }
     percentiles[percentiles < percentile] <- 0
@@ -276,7 +300,6 @@ rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "la
 #' @param p A numeric specifying the restart value for random walk, default=0.1
 #' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
 #' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
-#' @param n_cores A numeric indicating the number of cores for multi-core processing.
 #' @param limit A numeric specifying the number of genes to be included in the network signature. Default is 30.
 #'
 #' @return vector of gene strings
@@ -294,10 +317,17 @@ network_sig <- function(ig,
                         p = 0.1,
                         bootstrap = FALSE,
                         n_bootstraps = 1000,
-                        n_cores = 1,
                         limit = 30) {
   stopifnot(is(seeds, "character") | is(seeds, "list"))
   stopifnot(is(ig, "igraph"))
+
+  gene_names <- igraph::V(ig)$name
+  all_genes <- unname(unlist(seeds))
+  seed_genes_filter <- all(all_genes %in% gene_names)
+  if (!seed_genes_filter) {
+    print("Filtering Seed Genes to those contained in the graph.")
+    seeds <- lapply(seeds, function(x) x[x %in% gene_names])
+  }
 
   if (sig == "corr") {
     if ("weight" %in% list.edge.attributes(ig)) {
@@ -314,18 +344,18 @@ network_sig <- function(ig,
                        avg_p_vals = avg_p_vals,
                        avg_p_length = avg_p_length)
     if(bootstrap & (p != 1)) {
-      mat_bootstraps <- parallel::mclapply(1:n_bootstraps,
-                                           function(x)
-                                             rwr_mat(ig,
-                                                     seeds,
-                                                     restart = p,
-                                                     avg_p = avg_p,
-                                                     avg_p_vals = avg_p_vals,
-                                                     avg_p_length = avg_p_length,
-                                                     bootstrap = bootstrap) %>% as.matrix(),
-                                           mc.cores = n_cores)
-      mat_bootstraps <- abind::abind(mat_bootstraps, along = 3)
-      net_sig <- extract_sig_mat(obs_mat, bootstraps = mat_bootstraps)
+      # If bootstrap matrix is (n_genes, n_bootstraps x n_bins)
+      mat_bootstraps <- rwr_mat(ig,
+                                seeds,
+                                restart = p,
+                                avg_p = avg_p,
+                                avg_p_vals = avg_p_vals,
+                                avg_p_length = avg_p_length,
+                                bootstrap = bootstrap,
+                                n_bootstraps = n_bootstraps) %>% as.matrix()
+
+      sig_bins <- lapply(seeds, length)
+      net_sig <- extract_sig_mat(obs_mat, bootstraps = mat_bootstraps, sig_bins = sig_bins)
     } else {
       net_sig <- extract_sig_mat(obs_mat, bootstraps = NULL, limit = limit)
     }
