@@ -1,4 +1,4 @@
-## code to prepare `gtex` dataset goes here
+## code to prepare `gtex_discrete` dataset goes here
 library(data.table)
 library(dplyr)
 library(DESeq2)

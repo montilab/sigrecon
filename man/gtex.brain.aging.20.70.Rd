@@ -3,7 +3,7 @@
 \docType{data}
 \name{gtex.brain.aging.20.70}
 \alias{gtex.brain.aging.20.70}
-\title{GTEX Whole Brain Aging signatures}
+\title{GTEX Whole Brain Aging signatures (Discrete Bins)}
 \format{
 Nested list of genesets
 }

@@ -128,7 +128,7 @@
 #' @source \url{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945}
 "neurips2023.myeloid"
 
-#' GTEX Whole Blood Aging signatures
+#' GTEX Whole Blood Aging signatures (Discrete Bins)
 #'
 #' DEGs between 70-79 and 20-29 whole blood bulk samples from GTEX v10.
 #' For each geneset, the `up` set represents the top 100 DEGs
@@ -138,7 +138,7 @@
 #' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.blood.aging.20.70"
 
-#' GTEX Whole Brain Aging signatures
+#' GTEX Whole Brain Aging signatures (Discrete Bins)
 #'
 #' DEGs between 70-79 and 20-29 brain bulk samples from GTEX v10.
 #' For each geneset, the `up` set represents the top 100 DEGs
@@ -147,3 +147,23 @@
 #' @format Nested list of genesets
 #' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.brain.aging.20.70"
+
+#' GTEX Whole Blood Aging signatures (Continuous)
+#'
+#' DEGs between old and young whole blood bulk samples (age as a numerical covariate) from GTEX v10.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
+#'
+#' @format Nested list of genesets
+#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+"gtex.blood.aging"
+
+#' GTEX Whole Brain Aging signatures (Continuous)
+#'
+#' DEGs between old and young whole brain bulk samples (age as a numerical covariate) from GTEX v10.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
+#'
+#' @format Nested list of genesets
+#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+"gtex.brain.aging"
