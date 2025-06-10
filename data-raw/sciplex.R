@@ -9,6 +9,7 @@ DATA_PATH <- ""
 
 # Loading Sci-Plex Data
 # Download from here https://figshare.com/articles/dataset/sciPlex_dataset/24681285?file=43381398
+# On SCC DATA_PATH can be set to montilab-p/CBMrepositoryData/sci-plex
 a549 <- readRDS(file.path(DATA_PATH, "a549.rds"))
 k562 <- readRDS(file.path(DATA_PATH, "k562.rds"))
 mcf7 <- readRDS(file.path(DATA_PATH, "mcf7.rds"))

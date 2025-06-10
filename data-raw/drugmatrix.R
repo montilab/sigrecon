@@ -7,6 +7,7 @@ DATA_PATH <- ""
 SAVE_PATH <- ""
 
 # Download data from https://ntp.niehs.nih.gov/data/drugmatrix
+# On the SCC DATA_PATH can be set to montilab-p/CBMrepositoryData/otherStudies/RNAseq/drugmatrix
 liver_elist <- readRDS(file=file.path(DATA_PATH, "liver.rds"))
 kidney_elist <- readRDS(file=file.path(DATA_PATH, "kidney.rds"))
 

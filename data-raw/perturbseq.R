@@ -8,6 +8,7 @@ PATH <- ""
 
 # Load AnnData
 # Download from here https://plus.figshare.com/articles/dataset/_Mapping_information-rich_genotype-phenotype_landscapes_with_genome-scale_Perturb-seq_Replogle_et_al_2022_processed_Perturb-seq_datasets/20029387
+# On the SCC PATH can be set to montilab-p/CBMrepositoryData/perturb-seq/
 rpe1_essential_raw_sc_path <- file.path(PATH, "rpe1_raw_singlecell_01.h5ad")
 rpe1_essential_raw_sc_data <- anndata::read_h5ad(rpe1_essential_raw_sc_path)
 

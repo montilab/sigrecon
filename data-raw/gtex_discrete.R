@@ -3,6 +3,7 @@ library(data.table)
 library(dplyr)
 library(DESeq2)
 
+# On the SCC DATA_PATH can be set to "montilab-p/CBMrepositoryData/GTEX/raw/transcriptomics/"
 DATA_PATH <- ""
 PATH <- ""
 

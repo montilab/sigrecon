@@ -15,6 +15,7 @@ PATH <- ""
 
 # Read AnnData object
 # Download data from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945
+# On SCC PATH can be set to /restricted/projectnb/brcameta/projects/sig_recon/data/openproblems
 adata <- anndata::read_h5ad(file.path(PATH, "GSE279945_sc_counts_processed.h5ad"))
 seurat_obj <- CreateSeuratObject(counts = t(adata$raw$X),
                                  meta.data = adata$obs)
