@@ -167,3 +167,13 @@
 #' @format Nested list of genesets
 #' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.brain.aging"
+
+#' GTEX Aging signatures (Continuous)
+#'
+#' DEGs between old and young tissue bulk samples (age as a numerical covariate) from GTEX v10.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
+#'
+#' @format Nested list of genesets
+#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+"gtex.aging"
