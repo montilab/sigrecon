@@ -2,12 +2,12 @@
 % Please edit documentation in R/util.R
 \name{rank.var.eset}
 \alias{rank.var.eset}
-\title{Rank Genes in an ExpressionSet by Variability}
+\title{Rank Genes in an ExpressionSet/SummarizedExperiment by Variability}
 \usage{
 rank.var.eset(eset, fn = mad, filter_zero = FALSE)
 }
 \arguments{
-\item{eset}{An ExpressionSet object containing gene expression data.}
+\item{eset}{An ExpressionSet/SummarizedExperiment object containing gene expression data.}
 
 \item{fn}{A function to measure variability. Default is \code{mad} (median absolute deviation).}
 
@@ -17,7 +17,7 @@ rank.var.eset(eset, fn = mad, filter_zero = FALSE)
 A pvector object containing ranked gene names.
 }
 \description{
-This function ranks genes in an ExpressionSet object based on their variability,
+This function ranks genes in an ExpressionSet/SummarizedExperiment object based on their variability,
 as measured by a specified function (default is median absolute deviation).
 }
 \details{

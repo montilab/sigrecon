@@ -56,12 +56,12 @@ pvector <- R6Class("pvector", list(
   }
 ))
 
-#' Rank Genes in an ExpressionSet by Variability
+#' Rank Genes in an ExpressionSet/SummarizedExperiment by Variability
 #'
-#' This function ranks genes in an ExpressionSet object based on their variability,
+#' This function ranks genes in an ExpressionSet/SummarizedExperiment object based on their variability,
 #' as measured by a specified function (default is median absolute deviation).
 #'
-#' @param eset An ExpressionSet object containing gene expression data.
+#' @param eset An ExpressionSet/SummarizedExperiment object containing gene expression data.
 #' @param fn A function to measure variability. Default is `mad` (median absolute deviation).
 #' @param filter_zero A logical indicating whether to filter out genes with zero variance. Default is FALSE.
 #'
@@ -73,9 +73,22 @@ pvector <- R6Class("pvector", list(
 #' genes with zero variance are removed before ranking.
 #'
 #' @importFrom Biobase exprs
+#' @importFrom SummarizedExperiment assay
 #' @importFrom stats mad
 rank.var.eset <- function(eset, fn=mad, filter_zero=FALSE) {
-  eset.mat <- Biobase::exprs(eset)
+  stopifnot(
+    "Input object must be an ExpressionSet or a SummarizedExperiment" =
+      is(eset, "ExpressionSet") || is(eset, "SummarizedExperiment")
+  )
+
+  # Extract expression matrix based on object type
+  if (is(eset, "ExpressionSet")) {
+    eset.mat <- Biobase::exprs(eset)
+  } else if (is(eset, "SummarizedExperiment")) {
+    # Default to the first assay if no specific assay name is provided or if there's only one
+    # For more robust usage, one might add an 'assay_name' argument.
+    eset.mat <- SummarizedExperiment::assay(eset)
+  }
   gene.var <- apply(eset.mat, 1, fn)
 
   if(filter_zero) {
