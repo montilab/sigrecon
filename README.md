@@ -13,5 +13,5 @@ This repository contains benchmarking tasks and data for evaluating these signat
 
 ## Installation:
 ```
-devtools::install_github("montilab/sigrecon")
+BiocManager::install("montilab/sigrecon", dependencies=TRUE)
 ```
