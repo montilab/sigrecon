@@ -56,7 +56,7 @@ obs_filt <- obs_filt & seurat_obj@meta.data$sm_name != "UNII-BXU45ZH6LI"
 # filter obs
 seurat_obj <- seurat_obj[,obs_filt]
 
-# 2. Compute Pseudobulk
+# 2. Compute Pseudobulk (https://github.com/openproblems-bio/task_perturbation_prediction/blob/main/src/process_dataset/compute_pseudobulk/script.py)
 seurat_pb <- Seurat::AggregateExpression(seurat_obj,
                                          group.by = "plate_well_celltype_reannotated",
                                          return.seurat = TRUE)
@@ -82,7 +82,7 @@ seurat_pb@meta.data <- pb_metadata
 sum(rowSums(seurat_pb@assays$RNA$counts) == 0)
 ## There are no samples with no counts
 
-# 3. Filter Var
+# 3. Filter Var (https://github.com/openproblems-bio/task_perturbation_prediction/blob/main/src/process_dataset/filter_vars/script.R)
 cat("Filtering variables\n")
 # Transform function similar to limma's requirements in the Python script
 limma_trafo <- function(value) {
@@ -113,7 +113,7 @@ gene_filt <- Reduce(intersect, genes_to_keep)
 # filter genes
 seurat_pb <- seurat_pb[gene_filt, ]
 
-# 4. Limma
+# 4. Limma (https://github.com/openproblems-bio/task_perturbation_prediction/blob/main/src/process_dataset/run_limma/script.R)
 seurat_pb$sm_cell_type <- paste(seurat_pb$sm_name, seurat_pb$cell_type, sep = "_")
 
 # select [cell_type, sm_name] pairs which will be used for DE analysis
