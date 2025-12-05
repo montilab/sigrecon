@@ -4,6 +4,7 @@ library(tidyverse)
 library(Biobase)
 library(R6)
 library(doParallel)
+library(MDMR)
 
 #' A push/pop capable vector
 #'
@@ -207,6 +208,81 @@ bin_presence <- function(x) {
   present <- labels %in% bins
   names(present) <- labels
   return(present)
+}
+
+#' @title Run MDMR regression with robust error handling
+#' @description A helper function to perform MDMR regression given a gene signature,
+#'   a SingleCellExperiment object, and a phenotype label from colData.
+#' @param signature A character vector of gene IDs.
+#' @param sce A SingleCellExperiment object containing expression data and phenotype information.
+#' @param phenotype_label A character string specifying the column name in colData(sce)
+#'   to be used as the phenotype for MDMR (e.g., "AGE").
+#' @param assay_label A character string specifying the name of the assay in the sce object to be used for MDMR.
+#' @param method_label An optional character string for logging/warning purposes,
+#'   indicating which method (e.g., "non_recon") is calling this function.
+#' @return A list with elements 'stat' (the MDMR statistic) and 'r2' (the R-squared/pr.sq),
+#'   or a list with NA_real_ values if an error or invalid input occurs.
+#'
+#' @importFrom MDMR mdmr
+#'
+#' @export
+mdmr_eval <- function(signature,
+                      sce,
+                      phenotype_label,
+                      assay_label = "DESeq2_log",
+                      method_label = "MDMR_run") {
+
+  # Initialize return values
+  res <- list(stat = NA_real_, r2 = NA_real_)
+
+  # --- 1. Validate Phenotype Data ---
+  if (!phenotype_label %in% colnames(colData(sce))) {
+    warning(paste0("Skipping ", method_label, ": Phenotype '", phenotype_label, "' not found in colData(sce)."))
+    return(res)
+  }
+
+  pheno_data <- colData(sce)[[phenotype_label]]
+  if (is.null(pheno_data) || length(unique(pheno_data)) < 2) {
+    warning(paste0("Skipping ", method_label, ": Phenotype '", phenotype_label, "' data is insufficient or constant."))
+    return(res)
+  }
+
+  # Calculate distance matrix for phenotype
+  y_d <- dist(as.matrix(pheno_data), method = "manhattan")
+
+  # --- 2. Validate Gene Signature and Expression Data ---
+  if (is.null(signature) || length(signature) < 2) {
+    warning(paste0("Skipping ", method_label, ": Gene signature insufficient (<2 genes)."))
+    return(res)
+  }
+
+  all_features_in_sce <- rownames(sce)
+  valid_genes <- intersect(signature, all_features_in_sce)
+
+  if (length(valid_genes) < 2) {
+    warning(paste0("Skipping ", method_label, ": Too few valid genes (", length(valid_genes), ") from signature found in SCE object."))
+    return(res)
+  }
+
+  expression_mat <- sce[valid_genes,]@assays@data[[assay_label]]
+
+  if (nrow(expression_mat) < 2 || ncol(expression_mat) < 2) {
+    warning(paste0("Skipping ", method_label, ": Expression matrix for signature is insufficient (",
+                   nrow(expression_mat), " genes, ", ncol(expression_mat), " samples)."))
+    return(res)
+  }
+
+  # --- 3. Run MDMR with error handling ---
+  mdmr_output <- tryCatch({
+    # Transpose for MDMR: samples as rows, genes as columns
+    mdmr_res <- mdmr(t(expression_mat), y_d)
+    list(stat = mdmr_res$stat[1,], r2 = mdmr_res$pr.sq[1,])
+  }, error = function(e) {
+    warning(paste0("MDMR failed for ", method_label, ": ", e$message))
+    res # Return initialized NAs on error
+  })
+
+  return(mdmr_output)
 }
 
 #' Vectorized Kolmogorov-Smirnov Test
