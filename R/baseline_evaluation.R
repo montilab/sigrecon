@@ -1,5 +1,51 @@
 library(tidyverse)
 
+#' @title Evaluate Signature Prediction
+#'
+#' @description This function calculates various evaluation metrics for predicted gene signatures
+#' against true (ground truth) gene signatures, given a source signature as input.
+#' Metrics include Jaccard index, gene displacement, and Kolmogorov-Smirnov (KS) test statistics
+#' for rank agreement.
+#'
+#' @param source_sigs A named list of genesets.
+#' @param pred_sigs A named list of genesets.
+#' @param true_sigs A named list of genesets containing both the cutoff signature `up` and the full signature `up_full`.
+#' @param source A character string describing the starting biological context.
+#'
+#' @return A data frame with evaluation results. Each row corresponds to a perturbation and context.
+#'
+#' @export
+sig_eval_table <- function(source_sigs,
+                           pred_sigs,
+                           true_sigs,
+                           source = "source_context") {
+  dest_short_sigs <- lapply(true_sigs, function(x) x$up)
+  dest_full_sigs <- lapply(true_sigs, function(x) x$up_full)
+  jacc_source_dest <- v.jaccard(pred_sigs, dest_short_sigs)
+
+  # Displacement
+  displaced <- count_displaced_genes(recon_sig = pred_sigs, seed_sig = source_sigs)
+  n_displaced <- unname(unlist(lapply(displaced, function(x) x$displaced)))
+  n_not_displaced <- unname(unlist(lapply(displaced, function(x) x$not_displaced)))
+
+  # KS.Test (Ranks of Top n recontextualized compared to Full list of dest)
+  ks_obj <- v.ks.test(data_vecs = pred_sigs,
+                      ref_vecs = dest_full_sigs)
+  Ds <- ks_obj$D_stats
+  p_vals <- ks_obj$p_vals
+
+  eval_df <- data.frame(
+    source = source,
+    displaced = n_displaced,
+    kept = n_not_displaced,
+    gene = names(pred_sigs),
+    jacc = jacc_source_dest,
+    k_d = Ds,
+    k_p = p_vals
+  )
+  return(eval_df)
+}
+
 #' Evaluate recontextualized signatures
 #'
 #' @param ig igraph
