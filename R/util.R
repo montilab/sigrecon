@@ -210,6 +210,85 @@ bin_presence <- function(x) {
   return(present)
 }
 
+#' Filter Significant Genes by Perturbation
+#'
+#' @description
+#' Filters and ranks genes by significance for each perturbation in a differential
+#' expression table. Returns both all genes ranked by a combined score and
+#' significantly up-regulated genes that pass thresholds.
+#'
+#' @param diff_table A data frame containing differential expression results with
+#'   perturbation identifiers, log2 fold changes, and adjusted p-values.
+#' @param perts A character vector of perturbation names to filter for.
+#' @param alpha Numeric. Adjusted p-value threshold for significance. Default is 0.05.
+#' @param limit Integer. Maximum number of top significant genes to return per
+#'   perturbation. Default is 100.
+#' @param pert_col Character. Name of the column containing perturbation identifiers.
+#'   Default is "product".
+#' @param log2fc_col Character. Name of the column containing log2 fold change values.
+#'   Default is "avg_log2FC".
+#' @param pval_col Character. Name of the column containing adjusted p-values.
+#'   Default is "p_val_adj".
+#' @param geneid_col Character. Name of the column containing gene identifiers.
+#'
+#' @return A nested list where each perturbation contains:
+#'   \itemize{
+#'     \item{\code{up}}: Character vector of row names for top significantly
+#'       upregulated genes (filtered by alpha and limited by limit parameter)
+#'     \item{\code{up_full}}: Character vector of row names for all genes ranked
+#'       by combined score (log2FC * -log10(p_val_adj))
+#'   }
+#'
+#' @details
+#' The function computes a combined significance score as:
+#' \deqn{score = log2FC \times -log10(p_{adj})}
+#'
+#' For the "up" results, genes must meet three criteria:
+#' \enumerate{
+#'   \item log2FC > 0 (upregulated)
+#'   \item adjusted p-value <= alpha
+#'   \item Ranked in top N genes (specified by limit)
+#' }
+#' @importFrom dplyr filter arrange slice
+#' @export
+sig_filter_fn <- function(diff_table,
+                          perts,
+                          alpha = 0.05,
+                          limit = 100,
+                          pert_col = "product",
+                          log2fc_col = "avg_log2FC",
+                          pval_col = "p_val_adj",
+                          geneid_col = "ensembl_id") {
+  results <- list()
+
+  for(pb in perts) {
+    print(pb)
+
+    # Create combined score column
+    diff_table$logFC_adjpval <- diff_table[[log2fc_col]] * (-log10(diff_table[[pval_col]]))
+
+    # Get all genes for this perturbation, ordered by score
+    full_sig <- diff_table %>%
+      dplyr::filter(.data[[pert_col]] == pb) %>%
+      dplyr::arrange(desc(logFC_adjpval)) %>%
+      dplyr::pull(geneid_col)
+
+    # Get significant upregulated genes
+    sig_sig <- diff_table %>%
+      dplyr::filter(.data[[pert_col]] == pb) %>%
+      dplyr::filter(.data[[log2fc_col]] > 0) %>%
+      dplyr::filter(.data[[pval_col]] <= alpha) %>%
+      dplyr::arrange(desc(logFC_adjpval)) %>%
+      dplyr::slice(1:limit) %>%
+      dplyr::pull(geneid_col)
+
+    results[[pb]][["up"]] <- sig_sig
+    results[[pb]][["up_full"]] <- full_sig
+  }
+
+  return(results)
+}
+
 #' @title Run MDMR regression with robust error handling
 #' @description A helper function to perform MDMR regression given a gene signature,
 #'   a SingleCellExperiment object, and a phenotype label from colData.

@@ -156,3 +156,43 @@ recon_eval_df <- function(ig,
 
   return(eval_df)
 }
+
+#' Combine P-values Using Fisher's Method
+#'
+#' @description
+#' Combines multiple p-values from independent tests into a single meta p-value
+#' using Fisher's method (also known as Fisher's combined probability test).
+#'
+#' @details
+#' Fisher's method combines p-values by computing the test statistic:
+#' \deqn{X = -2 \sum_{i=1}^{k} \ln(p_i)}
+#'
+#' Under the null hypothesis (all individual null hypotheses are true), X follows
+#' a chi-squared distribution with 2k degrees of freedom, where k is the number
+#' of p-values. This method assumes that the tests are independent.
+#'
+#' The combined p-value represents the probability of observing the given set of
+#' p-values (or more extreme) if all null hypotheses are true.
+#'
+#' @param pvals Numeric vector of p-values to combine. All values must be between
+#'   0 and 1 (exclusive of 0). NA values are not allowed.
+#'
+#' @return A single numeric value representing the combined p-value.
+#'
+#' @examples
+#' # Combine three p-values
+#' fishers_meta_p(c(0.01, 0.03, 0.25))
+#'
+#' # Two significant p-values
+#' fishers_meta_p(c(0.001, 0.005))
+#'
+#' # Mix of significant and non-significant
+#' fishers_meta_p(c(0.045, 0.23, 0.67))
+#'
+#' @export
+fishers_meta_p <- function(pvals) {
+  # pvals: a vector of p-values, e.g. c(0.01, 0.03, 0.25)
+  X <- -2 * sum(log(pvals))
+  df <- 2 * length(pvals)
+  return(pchisq(X, df=df, lower.tail = FALSE))
+}
