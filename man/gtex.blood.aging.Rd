@@ -8,7 +8,7 @@
 Nested list of genesets
 }
 \source{
-\url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+\url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 }
 \usage{
 gtex.blood.aging

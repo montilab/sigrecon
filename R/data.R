@@ -135,7 +135,7 @@
 #' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
 #'
 #' @format Nested list of genesets
-#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+#' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.blood.aging.20.70"
 
 #' GTEX Whole Brain Aging signatures (Discrete Bins)
@@ -145,7 +145,7 @@
 #' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
 #'
 #' @format Nested list of genesets
-#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+#' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.brain.aging.20.70"
 
 #' GTEX Whole Blood Aging signatures (Continuous)
@@ -155,7 +155,7 @@
 #' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
 #'
 #' @format Nested list of genesets
-#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+#' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.blood.aging"
 
 #' GTEX Whole Brain Aging signatures (Continuous)
@@ -165,7 +165,7 @@
 #' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
 #'
 #' @format Nested list of genesets
-#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+#' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.brain.aging"
 
 #' GTEX Aging signatures (Continuous)
@@ -175,5 +175,5 @@
 #' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
 #'
 #' @format Nested list of genesets
-#' @source \url{hhttps://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
+#' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.aging"
