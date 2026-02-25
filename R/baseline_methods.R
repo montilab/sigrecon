@@ -1,10 +1,3 @@
-library(GSVA)
-library(igraph)
-library(Matrix)
-library(abind)
-library(parallel)
-library(tidyverse)
-
 #' Reconstruct Gene Signatures Using GSVA Scores
 #'
 #' @description
@@ -306,7 +299,6 @@ rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "la
 #'
 #' @importFrom igraph as_adjacency_matrix
 #' @importFrom abind abind
-#' @importFrom parallel mclapply
 #' @export
 network_sig <- function(ig,
                         seeds,

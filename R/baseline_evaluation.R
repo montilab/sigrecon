@@ -1,5 +1,3 @@
-library(tidyverse)
-
 #' @title Evaluate Signature Prediction
 #'
 #' @description This function calculates various evaluation metrics for predicted gene signatures

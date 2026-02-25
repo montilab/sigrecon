@@ -1,7 +1,3 @@
-library(WGCNA)
-library(Biobase)
-library(SummarizedExperiment)
-
 #' Set Diagonal of a Matrix to Zero
 #'
 #' @description

@@ -1,11 +1,3 @@
-library(igraph)
-library(purrr)
-library(tidyverse)
-library(Biobase)
-library(R6)
-library(doParallel)
-library(MDMR)
-
 #' A push/pop capable vector
 #'
 #' @description
@@ -164,6 +156,8 @@ common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALS
 #' The function iterates through the variable features of each Seurat object,
 #' selecting genes that are present in all objects. It continues until it reaches
 #' the specified limit or exhausts all common variable genes.
+#' 
+#' @importFrom Seurat VariableFeatures
 seurat_common_var_genes <- function(seurat_objs, limit) {
 
   if(seurat_objs[[1]]@version == "5.0.1") {
@@ -303,7 +297,8 @@ sig_filter_fn <- function(diff_table,
 #'   or a list with NA_real_ values if an error or invalid input occurs.
 #'
 #' @importFrom MDMR mdmr
-#'
+#' @importFrom SummarizedExperiment colData
+#' 
 #' @export
 mdmr_eval <- function(signature,
                       sce,
