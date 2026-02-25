@@ -393,40 +393,50 @@ v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
   }
 
   stopifnot(all.equal(names(data_vecs), names(ref_vecs)))
+  # Get perturbation names
+  pb_names <- names(ref_vecs)
+  n_perturbations <- length(pb_names)
+  
+  Ds <- setNames(numeric(n_perturbations), pb_names)
+  ps <- setNames(numeric(n_perturbations), pb_names)
+  n_tested <- setNames(integer(n_perturbations), pb_names)
 
-  n_ranks <- length(ref_vecs[[1]])
-  n_genes <- length(data_vecs)
-
-  Ds <- numeric(length = n_genes)
-  ps <- numeric(length = n_genes)
-
-  i <- 1
-  for (pb in names(ref_vecs)) {
+  for (pb in pb_names) {
     ref_vec <- ref_vecs[[pb]]
     data_vec <- data_vecs[[pb]]
+
+    # Get length of reference (for this specific perturbation)
+    n_ranks <- length(ref_vec)
+
     ranks <- match(x=data_vec, table=ref_vec)
 
     if (all(is.na(ranks))) {
-      print(paste0(pb, " has no ranks."))
-      Ds[[i]] <- 0
-      ps[[i]] <- 0
-      next
+      warning(paste0(pb, " has no matching genes."))
+      Ds[pb] <- NA  
+      ps[pb] <- NA
+      n_tested[pb] <- 0
     } else {
-      ranks <- ranks[!is.na(ranks)]
-    }
+      # Remove NAs
+      ranks_clean <- ranks[!is.na(ranks)]
+      n_tested[pb] <- length(ranks_clean)
+      
+      if (use_weights) {
+        weights <- seq(1,-1, length.out = n_ranks)
+      } else {
+        weights <- NULL
+      }
 
-    if (use_weights) {
-      weights <- seq(1,-1, length.out = n_ranks)
-    } else {
-      weights <- NULL
+      # Run KS test
+      ks_obj <- tryCatch({
+        kstest(n_ranks, ranks_clean, weights = weights, weights.pwr = weights.pwr)
+      }, error = function(e) {
+        warning(paste0("KS test failed for ", pb, ": ", e$message))
+        list(score = NA, pval = NA)
+      })
+      
+      Ds[pb] <- ks_obj$score
+      ps[pb] <- ks_obj$pval
     }
-
-    ks_obj <- kstest(n_ranks, ranks, weights=weights, weights.pwr=weights.pwr)
-    D <- ks_obj$score
-    p_val <- ks_obj$pval
-    Ds[[i]] <- D
-    ps[[i]] <- p_val
-    i <- i+1
   }
   return(list(D_stats=Ds, p_vals=ps))
 }
