@@ -336,7 +336,7 @@ silggm.adj <- function(mat,
 
   if (pval_filter) {
     silggm_pval <- as.matrix(silggm_res$p_partialCor)
-    silggm_pval_bool <- silggm_pval < p_val
+    silggm_pval_bool <- silggm_pval < pval
     silggm_mat[!silggm_pval_bool] <- 0
   }
 

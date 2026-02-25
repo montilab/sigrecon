@@ -469,7 +469,7 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
     D <- Matrix::Diagonal(x = (Matrix::colSums(adj_mat))^(-0.5))
     nadjM <- D %*% adj_mat %*% D
   } else if (normalize == "none") {
-    nadjM <- adjM
+    nadjM <- adj_mat
   }
 
   ## Stopping Criteria
