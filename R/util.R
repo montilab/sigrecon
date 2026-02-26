@@ -156,7 +156,7 @@ common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALS
 #' The function iterates through the variable features of each Seurat object,
 #' selecting genes that are present in all objects. It continues until it reaches
 #' the specified limit or exhausts all common variable genes.
-#' 
+#'
 #' @importFrom Seurat VariableFeatures
 seurat_common_var_genes <- function(seurat_objs, limit) {
 
@@ -263,15 +263,15 @@ sig_filter_fn <- function(diff_table,
 
     # Get all genes for this perturbation, ordered by score
     full_sig <- diff_table %>%
-      dplyr::filter(.data[[pert_col]] == pb) %>%
+      dplyr::filter(!!sym(pert_col) == !!pb) %>%
       dplyr::arrange(desc(logFC_adjpval)) %>%
       dplyr::pull(geneid_col)
 
     # Get significant upregulated genes
     sig_sig <- diff_table %>%
-      dplyr::filter(.data[[pert_col]] == pb) %>%
-      dplyr::filter(.data[[log2fc_col]] > 0) %>%
-      dplyr::filter(.data[[pval_col]] <= alpha) %>%
+      dplyr::filter(!!sym(pert_col) == !!pb) %>%
+      dplyr::filter(!!sym(log2fc_col) > 0) %>%
+      dplyr::filter(!!sym(pval_col) <= alpha) %>%
       dplyr::arrange(desc(logFC_adjpval)) %>%
       dplyr::slice(1:limit) %>%
       dplyr::pull(geneid_col)
@@ -298,7 +298,7 @@ sig_filter_fn <- function(diff_table,
 #'
 #' @importFrom MDMR mdmr
 #' @importFrom SummarizedExperiment colData
-#' 
+#'
 #' @export
 mdmr_eval <- function(signature,
                       sce,
@@ -396,7 +396,7 @@ v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
   # Get perturbation names
   pb_names <- names(ref_vecs)
   n_perturbations <- length(pb_names)
-  
+
   Ds <- setNames(numeric(n_perturbations), pb_names)
   ps <- setNames(numeric(n_perturbations), pb_names)
   n_tested <- setNames(integer(n_perturbations), pb_names)
@@ -412,14 +412,14 @@ v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
 
     if (all(is.na(ranks))) {
       warning(paste0(pb, " has no matching genes."))
-      Ds[pb] <- NA  
+      Ds[pb] <- NA
       ps[pb] <- NA
       n_tested[pb] <- 0
     } else {
       # Remove NAs
       ranks_clean <- ranks[!is.na(ranks)]
       n_tested[pb] <- length(ranks_clean)
-      
+
       if (use_weights) {
         weights <- seq(1,-1, length.out = n_ranks)
       } else {
@@ -433,7 +433,7 @@ v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
         warning(paste0("KS test failed for ", pb, ": ", e$message))
         list(score = NA, pval = NA)
       })
-      
+
       Ds[pb] <- ks_obj$score
       ps[pb] <- ks_obj$pval
     }
