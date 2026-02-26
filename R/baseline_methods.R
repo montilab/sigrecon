@@ -42,7 +42,6 @@ gsva_recon <- function(sce,
   results <- as_tibble(corr_mat, rownames="gene")
   new_sigs <- list()
   for(sig_name in colnames(gsva_scores)) {
-    print(sig_name)
     # Obtain Rank of Genes most correlated to GSVA scores
     results$rank <- rank(dplyr::desc(results[[sig_name]]))
 
@@ -317,7 +316,7 @@ network_sig <- function(ig,
   all_genes <- unname(unlist(seeds))
   seed_genes_filter <- all(all_genes %in% gene_names)
   if (!seed_genes_filter) {
-    print("Filtering Seed Genes to those contained in the graph.")
+    message("Filtering Seed Genes to those contained in the graph.")
     seeds <- lapply(seeds, function(x) x[x %in% gene_names])
   }
 
@@ -443,11 +442,11 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
   if ("weight" %in% igraph::list.edge.attributes(ig)) {
     adj_mat <- igraph::as_adjacency_matrix(ig, attr = "weight")
     adj_mat[is.na(adj_mat)] <- 0
-    print("Using weighted graph")
+    message("Using weighted graph")
   } else {
     adj_mat <- igraph::as_adjacency_matrix(ig, attr = NULL)
     adj_mat[is.na(adj_mat)] <- 0
-    print("Using unweighted graph")
+    message("Using unweighted graph")
   }
 
   # Normalize adjacency matrix. DNet::dRWR had the multiplication orders flipped for row and column.
@@ -504,9 +503,9 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
     # }
 
     if (step > stop_step) {
-      print(paste0("Reached maximum iteration steps. Delta: ", delta))
+      message(paste0("Reached maximum iteration steps. Delta: ", delta))
     } else if (delta <= stop_delta) {
-      print(paste0("Reached Convergence. Iteration step: ", step))
+      message(paste0("Reached Convergence. Iteration step: ", step))
     }
   }
 

@@ -58,7 +58,6 @@ consensus_net <- function(list_of_nets, threshold=0.9) {
 #' @importFrom Biobase pData
 #' @importFrom dplyr group_by sample_frac ungroup pull
 eset_stratified_sample <- function(eset, stratify_column, sample_id_column, p=0.5) {
-  print(stratify_column)
   pdata <- pData(eset)
   pdata_strat <- pdata %>% group_by({{stratify_column}}) %>% sample_frac(p) %>% ungroup()
   sample_ids <- pdata_strat %>% pull({{sample_id_column}})
@@ -185,7 +184,6 @@ wgcna.power <- function(cor_mat,
 
   # Check selected power
   beta <- sft.check(sft)
-  print(beta)
 
   # Construct co-expression similarity
   adj <- WGCNA::adjacency.fromSimilarity(similarity=cor_mat,
@@ -244,14 +242,11 @@ wgcna.adj <- function(mat,
 
   # Handle arguments
   args <- as.list(environment())
-  print(args)
   cor.fn <- match.arg(cor.fn)
   cor.type <- match.arg(cor.type)
-  print(cor.fn)
   # Correlation options
   if (cor.fn == "cor") cor.options = list(use="p")
   if (cor.fn == "bicor") cor.options = list(pearsonFallback="individual")
-  print(cor.options)
 
   # Set parallel computing environment
   doParallel::registerDoParallel(cores=cores)
@@ -265,7 +260,6 @@ wgcna.adj <- function(mat,
 
     # Check selected power
     beta <- sft.check(sft)
-    print(beta)
   }
 
   # Construct co-expression similarity
