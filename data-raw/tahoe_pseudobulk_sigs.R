@@ -145,25 +145,60 @@ sig_dfs <- foreach(cell = celllines, .combine = dplyr::bind_rows) %:%
   }
 
 # saveRDS(sig_dfs, file.path(PATH, "data/tahoe/tahoe_deseq_dfs.rds"))
+tahoe_tbls <- readRDS(file.path(PATH, "data/tahoe/tahoe_deseq_dfs.rds"))
+sig_dfs <- tahoe_tbls %>%
+  dplyr::group_by(cell_line, drug) %>%
+  dplyr::group_split()
+
+# tahoe deseq dfs has a mix of gene symbols and ensembl ids
+map_ids <- function(genes) {
+  is_ensembl <- grepl("^ENSG", genes)
+
+  # Map only Ensembl IDs
+  if (any(is_ensembl)) {
+    ensembl_ids <- genes[is_ensembl]
+    tryCatch(
+      {
+        symbols <- mapIds(org.Hs.eg.db,
+                          keys = ensembl_ids,
+                          column = "SYMBOL",
+                          keytype = "ENSEMBL",
+                          multiVals = "first")
+
+        # Replace NAs with original Ensembl ID
+        symbols[is.na(symbols)] <- ensembl_ids[is.na(symbols)]
+
+        # Insert back
+        genes[is_ensembl] <- symbols
+        message(paste("Mapped", length(ensembl_ids), "ensembl ids to gene symbols."))
+      }, error = function(e) {
+        warning("An error occurred: ", conditionMessage(e), call. = FALSE)
+      }, finally = {
+        return(genes)
+      }
+    )
+  }
+  return(genes)
+}
+
 
 tahoe_sigs <- list()
 for(sig_df in sig_dfs) {
   cell_line <- unique(sig_df$cell_line) %>% as.character
   drug <- unique(sig_df$drug) %>% as.character
-
-  up_sig <- sig_df %>% dplyr::filter(log2FoldChange > 0) %>% dplyr::slice(1:100) %>% dplyr::pull(gene)
-  full_sig <- sig_df %>% pull(gene)
-
-
-  tahoe_sigs[[cell_line]][[drug]][["up"]] <- up_sig
-  tahoe_sigs[[cell_line]][[drug]][["up_full"]] <- full_sig
+  result <- sig_filter_fn(sig_df, perts = drug,
+                          pert_col = "drug",
+                          log2fc_col = "log2FoldChange",
+                          pval_col = "padj",
+                          geneid_col = "gene")
+  result <- lapply(result, function(x) lapply(x, function(y) map_ids(y)))
+  tahoe_sigs[[cell_line]] <- result
 }
 
-# saveRDS(tahoe_sigs, file.path(PATH, "data/tahoe/tahoe_sigs.rds"))
+saveRDS(tahoe_sigs, file.path(PATH, "data/tahoe/tahoe_sigs.rds"))
 
-# Subsetting each cell line to shared drugs (110 drugs for 50 cell lines)
 pbs <- lapply(tahoe_sigs, function(x) names(x)) %>% purrr::reduce(., intersect)
 tahoe_sigs_filtered <- lapply(tahoe_sigs, function(x) x[pbs])
 saveRDS(tahoe_sigs_filtered, file.path(PATH, "data/tahoe/tahoe_sigs_filtered.rds"))
 
-usethis::use_data(tahoe_sigs_filtered)
+# usethis::use_data(tahoe_sigs_filtered)
