@@ -6,7 +6,7 @@
 \usage{
 mdmr_eval(
   signature,
-  sce,
+  se,
   phenotype_label,
   assay_label = "DESeq2_log",
   method_label = "MDMR_run"
@@ -15,12 +15,12 @@ mdmr_eval(
 \arguments{
 \item{signature}{A character vector of gene IDs.}
 
-\item{sce}{A SingleCellExperiment object containing expression data and phenotype information.}
+\item{se}{A SummarizedExperiment object containing expression data and phenotype information.}
 
-\item{phenotype_label}{A character string specifying the column name in colData(sce)
+\item{phenotype_label}{A character string specifying the column name in colData(se)
 to be used as the phenotype for MDMR (e.g., "AGE").}
 
-\item{assay_label}{A character string specifying the name of the assay in the sce object to be used for MDMR.}
+\item{assay_label}{A character string specifying the name of the assay in the se object to be used for MDMR.}
 
 \item{method_label}{An optional character string for logging/warning purposes,
 indicating which method (e.g., "non_recon") is calling this function.}
@@ -31,5 +31,5 @@ or a list with NA_real_ values if an error or invalid input occurs.
 }
 \description{
 A helper function to perform MDMR regression given a gene signature,
-a SingleCellExperiment object, and a phenotype label from colData.
+a SummarizedExperiment object, and a phenotype label from colData.
 }

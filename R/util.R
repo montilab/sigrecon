@@ -285,12 +285,12 @@ sig_filter_fn <- function(diff_table,
 
 #' @title Run MDMR regression with robust error handling
 #' @description A helper function to perform MDMR regression given a gene signature,
-#'   a SingleCellExperiment object, and a phenotype label from colData.
+#'   a SummarizedExperiment object, and a phenotype label from colData.
 #' @param signature A character vector of gene IDs.
-#' @param sce A SingleCellExperiment object containing expression data and phenotype information.
-#' @param phenotype_label A character string specifying the column name in colData(sce)
+#' @param se A SummarizedExperiment object containing expression data and phenotype information.
+#' @param phenotype_label A character string specifying the column name in colData(se)
 #'   to be used as the phenotype for MDMR (e.g., "AGE").
-#' @param assay_label A character string specifying the name of the assay in the sce object to be used for MDMR.
+#' @param assay_label A character string specifying the name of the assay in the se object to be used for MDMR.
 #' @param method_label An optional character string for logging/warning purposes,
 #'   indicating which method (e.g., "non_recon") is calling this function.
 #' @return A list with elements 'stat' (the MDMR statistic) and 'r2' (the R-squared/pr.sq),
@@ -301,7 +301,7 @@ sig_filter_fn <- function(diff_table,
 #'
 #' @export
 mdmr_eval <- function(signature,
-                      sce,
+                      se,
                       phenotype_label,
                       assay_label = "DESeq2_log",
                       method_label = "MDMR_run") {
@@ -310,12 +310,12 @@ mdmr_eval <- function(signature,
   res <- list(stat = NA_real_, r2 = NA_real_)
 
   # --- 1. Validate Phenotype Data ---
-  if (!phenotype_label %in% colnames(colData(sce))) {
-    warning(paste0("Skipping ", method_label, ": Phenotype '", phenotype_label, "' not found in colData(sce)."))
+  if (!phenotype_label %in% colnames(colData(se))) {
+    warning(paste0("Skipping ", method_label, ": Phenotype '", phenotype_label, "' not found in colData(se)."))
     return(res)
   }
 
-  pheno_data <- colData(sce)[[phenotype_label]]
+  pheno_data <- colData(se)[[phenotype_label]]
   if (is.null(pheno_data) || length(unique(pheno_data)) < 2) {
     warning(paste0("Skipping ", method_label, ": Phenotype '", phenotype_label, "' data is insufficient or constant."))
     return(res)
@@ -330,15 +330,15 @@ mdmr_eval <- function(signature,
     return(res)
   }
 
-  all_features_in_sce <- rownames(sce)
-  valid_genes <- intersect(signature, all_features_in_sce)
+  all_features_in_se <- rownames(se)
+  valid_genes <- intersect(signature, all_features_in_se)
 
   if (length(valid_genes) < 2) {
-    warning(paste0("Skipping ", method_label, ": Too few valid genes (", length(valid_genes), ") from signature found in SCE object."))
+    warning(paste0("Skipping ", method_label, ": Too few valid genes (", length(valid_genes), ") from signature found in se object."))
     return(res)
   }
 
-  expression_mat <- sce[valid_genes,]@assays@data[[assay_label]]
+  expression_mat <- se[valid_genes,]@assays@data[[assay_label]]
 
   if (nrow(expression_mat) < 2 || ncol(expression_mat) < 2) {
     warning(paste0("Skipping ", method_label, ": Expression matrix for signature is insufficient (",
