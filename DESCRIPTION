@@ -17,6 +17,8 @@ LazyData: true
 LazyDataCompression: gzip
 Imports:
     Biobase,
+    BiocParallel,
+    fgsea,
     GSVA,
     R6,
     SummarizedExperiment,

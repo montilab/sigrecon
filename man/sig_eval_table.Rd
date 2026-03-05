@@ -4,7 +4,13 @@
 \alias{sig_eval_table}
 \title{Evaluate Signature Prediction}
 \usage{
-sig_eval_table(source_sigs, pred_sigs, true_sigs, source = "source_context")
+sig_eval_table(
+  source_sigs,
+  pred_sigs,
+  true_sigs,
+  source = "source_context",
+  BPPARAM = NULL
+)
 }
 \arguments{
 \item{source_sigs}{A named list of genesets.}
@@ -14,6 +20,8 @@ sig_eval_table(source_sigs, pred_sigs, true_sigs, source = "source_context")
 \item{true_sigs}{A named list of genesets containing both the cutoff signature \code{up} and the full signature \code{up_full}.}
 
 \item{source}{A character string describing the starting biological context.}
+
+\item{BPPARAM}{A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.}
 }
 \value{
 A data frame with evaluation results. Each row corresponds to a perturbation and context.

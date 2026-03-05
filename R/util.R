@@ -359,175 +359,309 @@ mdmr_eval <- function(signature,
   return(mdmr_output)
 }
 
-#' Vectorized Kolmogorov-Smirnov Test
+#' Create appropriate BiocParallel backend
 #'
-#' This function performs a vectorized Kolmogorov-Smirnov test on multiple gene vectors.
+#' @param workers Number of parallel workers (default: 1 for sequential)
+#' @param RNGseed Random seed for reproducibility (default: NULL)
+#' @param progress Show progress bar (default: FALSE)
+#' @param type Force backend type: "multicore", "snow", or "serial" (default: auto-detect)
+#' @return A BiocParallelParam object
 #'
-#' @param data_vecs A named list of genesets (observations), each representing a perturbation.
-#' @param ref_vecs A named list of genesets (reference), each representing a perturbation.
-#' @param use_weights Logical, whether to use weights in the KS test. Default is TRUE.
-#' @param weights.pwr Numeric, the power to which weights are raised. Default is 1.
+#' @examples
+#' # Sequential (default)
+#' bp <- make_bpparam()
 #'
-#' @return A list containing two elements:
-#'   \item{D_stats}{A numeric vector of D statistics for each perturbation}
-#'   \item{p_vals}{A numeric vector of p-values for each perturbation}
+#' # Parallel on Unix/Mac (forking)
+#' bp <- make_bpparam(workers = 2, RNGseed = 123)
 #'
-#' @details
-#' This function applies the Kolmogorov-Smirnov test to multiple gene vectors simultaneously.
-#' It compares each data vector to its corresponding reference vector and calculates
-#' the D statistic and p-value for each perturbation
+#' # Parallel on Windows (socket)
+#' bp <- make_bpparam(workers = 2, RNGseed = 123)
 #'
-#' If `use_weights` is TRUE, the function applies weights to the KS test, with weights
-#' ranging from 1 to -1 across the ranks.
+#' # With progress bar
+#' bp <- make_bpparam(workers = 2, progress = TRUE)
 #'
+#' @importFrom BiocParallel MulticoreParam SnowParam SerialParam
 #' @export
-v.ks.test <- function(data_vecs, ref_vecs, use_weights=TRUE, weights.pwr=1) {
+make_bpparam <- function(workers = 1,
+                         RNGseed = NULL,
+                         progress = FALSE,
+                         type = NULL) {
 
-  if(!setequal(names(data_vecs), names(ref_vecs))) {
-    print("Filtering sets to matching pairs.")
-    shared_vecs <- intersect(names(data_vecs), names(ref_vecs))
-    removed_vecs <- setdiff(names(data_vecs), names(ref_vecs))
-    print(paste0("Removed ", length(removed_vecs), " perturbations."))
-    data_vecs <- data_vecs[shared_vecs]
-    ref_vecs <- ref_vecs[shared_vecs]
+  # Sequential execution
+  if (workers == 1) {
+    return(BiocParallel::SerialParam())
   }
 
-  stopifnot(all.equal(names(data_vecs), names(ref_vecs)))
-  # Get perturbation names
-  pb_names <- names(ref_vecs)
-  n_perturbations <- length(pb_names)
+  # Determine backend type
+  if (is.null(type)) {
+    type <- if (.Platform$OS.type == "unix") "multicore" else "snow"
+  }
 
-  Ds <- setNames(numeric(n_perturbations), pb_names)
-  ps <- setNames(numeric(n_perturbations), pb_names)
-  n_tested <- setNames(integer(n_perturbations), pb_names)
-
-  for (pb in pb_names) {
-    ref_vec <- ref_vecs[[pb]]
-    data_vec <- data_vecs[[pb]]
-
-    # Get length of reference (for this specific perturbation)
-    n_ranks <- length(ref_vec)
-
-    ranks <- match(x=data_vec, table=ref_vec)
-
-    if (all(is.na(ranks))) {
-      warning(paste0(pb, " has no matching genes."))
-      Ds[pb] <- NA
-      ps[pb] <- NA
-      n_tested[pb] <- 0
-    } else {
-      # Remove NAs
-      ranks_clean <- ranks[!is.na(ranks)]
-      n_tested[pb] <- length(ranks_clean)
-
-      if (use_weights) {
-        weights <- seq(1,-1, length.out = n_ranks)
-      } else {
-        weights <- NULL
-      }
-
-      # Run KS test
-      ks_obj <- tryCatch({
-        kstest(n_ranks, ranks_clean, weights = weights, weights.pwr = weights.pwr)
-      }, error = function(e) {
-        warning(paste0("KS test failed for ", pb, ": ", e$message))
-        list(score = NA, pval = NA)
-      })
-
-      Ds[pb] <- ks_obj$score
-      ps[pb] <- ks_obj$pval
+  # Create appropriate backend
+  if (type == "multicore") {
+    if (.Platform$OS.type != "unix") {
+      warning("MulticoreParam only works on Unix/Mac, falling back to SnowParam")
+      type <- "snow"
     }
   }
-  return(list(D_stats=Ds, p_vals=ps))
+
+  BPPARAM <- switch(type,
+                    "multicore" = BiocParallel::MulticoreParam(
+                      workers = workers,
+                      RNGseed = RNGseed,
+                      progressbar = progress
+                    ),
+                    "snow" = BiocParallel::SnowParam(
+                      workers = workers,
+                      RNGseed = RNGseed,
+                      progressbar = progress
+                    ),
+                    "serial" = BiocParallel::SerialParam(),
+                    stop("Unknown backend type: ", type)
+  )
+
+  return(BPPARAM)
 }
 
-
-#' One-sided Kolmogorov–Smirnov test
+#' fgsea wrapper for gene symbol vectors
 #'
-#' @param n.x The length of a ranked list
-#' @param y A vector of positions in the ranked list
-#' @param weights Weights for weighted score (Subramanian et al.)
-#' @param weights.pwr Exponent for weights (Subramanian et al.)
-#' @param absolute Takes max-min score rather than the max deviation from null
-#' @param plotting Use true to generate plot
-#' @param plot.title Plot title
-#' @return A list of data and plots
+#' @param ref Vector of gene symbols representing the full ranked list (with weights)
+#' @param data Vector of gene symbols representing the gene set/pathway to test
+#' @param scoreType GSEA score type: "std" (default), "pos", or "neg"
+#' @param eps Precision for p-value calculation (default: 1e-50)
+#' @param ... Additional arguments passed to fgseaMultilevel
+#' @return A list with fgsea results (ES, NES, pval, padj, leadingEdge, size)
 #'
-#' @importFrom stats ks.test
+#' @examples
+#' # ref = all genes ranked by importance
+#' ref <- c("TP53", "MYC", "BRCA1", "KRAS", "EGFR", "PTEN", "AKT1", "PIK3CA")
+#' # data = gene set to test for enrichment
+#' data <- c("TP53", "BRCA1", "EGFR")
+#' result <- fgsea_wrapper(ref, data)
 #'
-#' @keywords internal
+#' @importFrom fgsea fgseaMultilevel
 #' @export
-kstest <- function(n.x,
-                   y,
-                   weights=NULL,
-                   weights.pwr=1,
-                   absolute=FALSE,
-                   plotting=FALSE,
-                   plot.title="") {
+fgsea_wrapper <- function(ref,
+                          data,
+                          scoreType = "std",
+                          eps = 1e-50,
+                          ...) {
 
-  n.y <- length(y)
-  err = list(score=0, pval=1, plot=ggempty())
-  if (n.y < 1 ) return(err)
-  if (any(y > n.x)) return(err)
-  if (any(y < 1)) return(err)
-
-  x.axis <- y.axis <- NULL
-
-  # If weights are provided
-  if (!is.null(weights)) {
-    weights <- abs(weights[y])^weights.pwr
-
-    Pmis <- rep(1, n.x); Pmis[y] <- 0; Pmis <- cumsum(Pmis); Pmis <- Pmis/(n.x-n.y)
-    Phit <- rep(0, n.x); Phit[y] <- weights; Phit <- cumsum(Phit); Phit <- Phit/Phit[n.x]
-    z <- Phit-Pmis
-
-    score <- if (absolute) max(z)-min(z) else z[which.max(abs(z))]
-
-    x.axis <- 1:n.x
-    y.axis <- z
-
-    # Without weights
-  } else {
-    y <- sort(y)
-    n <- n.x*n.y/(n.x + n.y)
-    hit <- 1/n.y
-    mis <- 1/n.x
-
-    Y <- sort(c(y-1, y))
-    Y <- Y[diff(Y) != 0]
-    y.match <- match(y, Y)
-    D <- rep(0, length(Y))
-    D[y.match] <- (1:n.y)
-    zero <- which(D == 0)[-1]
-    D[zero] <- D[zero-1]
-
-    z <- D*hit-Y*mis
-
-    score <- if (absolute) max(z)-min(z) else z[which.max(abs(z))]
-
-    x.axis <- Y
-    y.axis <- z
-
-    if (Y[1] > 0) {
-      x.axis <- c(0, x.axis)
-      y.axis <- c(0, y.axis)
-    }
-    if (max(Y) < n.x) {
-      x.axis <- c(x.axis, n.x)
-      y.axis <- c(y.axis, 0)
-    }
+  # Input validation
+  if (length(ref) == 0) {
+    stop("'ref' must be a non-empty vector of ranked gene symbols")
+  }
+  if (length(data) == 0) {
+    warning("'data' is empty, returning NULL")
+    return(NULL)
   }
 
-  # One-sided Kolmogorov–Smirnov test
-  results <- suppressWarnings(ks.test(1:n.x, y, alternative="less"))
-  results$statistic <- score  # Use the signed statistic from above
+  # Check for duplicates in ref
+  if (any(duplicated(ref))) {
+    warning("'ref' contains duplicates, removing them")
+    ref <- unique(ref)
+  }
 
-  # Enrichment plot
-  p <- if (plotting) ggeplot(n.x, y, x.axis, y.axis, plot.title) else ggempty()
+  n <- length(ref)
 
-  return(list(score=as.numeric(results$statistic),
-              pval=results$p.value,
-              plot=p))
+  # Create stats vector: descending rank from 1 to -1
+  # Position 1 (most important gene in ref) gets rank 1
+  # Last position gets rank -1
+  stats <- seq(from = 1, to = -1, length.out = n)
+  names(stats) <- ref
+
+  # data is the gene set/pathway to test
+  # Only test genes that appear in ref
+  pathway_genes <- intersect(data, ref)
+
+  if (length(pathway_genes) == 0) {
+    warning("No overlap between 'data' and 'ref', returning NULL")
+    return(NULL)
+  }
+
+  # Prepare pathways list
+  pathways <- list(geneset = pathway_genes)
+
+  # Run fgsea
+  result <- fgsea::fgseaMultilevel(
+    pathways = pathways,
+    stats = stats,
+    scoreType = scoreType,
+    eps = eps,
+    ...
+  )
+
+  # Extract and format results
+  return(list(
+    ES = result$ES[1],
+    NES = result$NES[1],
+    pval = result$pval[1],
+    padj = result$padj[1],
+    log2err = result$log2err[1],
+    size = result$size[1],
+    leadingEdge = result$leadingEdge[[1]]
+  ))
+}
+
+#' Vectorized fgsea wrapper for multiple gene set comparisons
+#'
+#' @param ref_vecs Named list of ranked gene symbol vectors (each is a full ranked list)
+#' @param data_vecs Named list of gene sets to test (each is a pathway/gene set)
+#' @param scoreType GSEA score type: "std" (default), "pos", or "neg"
+#' @param eps Precision for p-value calculation (default: 1e-50)
+#' @param BPPARAM A BiocParallelParam object specifying parallel backend.
+#'   If NULL, automatically selects appropriate backend based on platform.
+#'   See \code{BiocParallel::BiocParallelParam} for options.
+#' @param ... Additional arguments passed to fgseaMultilevel
+#' @return A data frame with fgsea results for each ref-data pair
+#'
+#' @examples
+#' library(BiocParallel)
+#'
+#' # Multiple ranked lists (e.g., from different conditions)
+#' ref_vecs <- list(
+#'   condition1 = c("TP53", "MYC", "BRCA1", "KRAS", "EGFR", "PTEN", "AKT1"),
+#'   condition2 = c("MYC", "KRAS", "TP53", "EGFR", "BRCA1", "PTEN", "AKT1")
+#' )
+#'
+#' # Gene sets to test in each condition
+#' data_vecs <- list(
+#'   condition1 = c("TP53", "BRCA1", "EGFR"),
+#'   condition2 = c("TP53", "BRCA1", "EGFR")
+#' )
+#'
+#' # Sequential execution
+#' results <- v.fgsea(ref_vecs, data_vecs)
+#'
+#' # Parallel execution (Unix/Mac)
+#' results <- v.fgsea(
+#'   ref_vecs, data_vecs,
+#'   BPPARAM = MulticoreParam(workers = 2)
+#' )
+#'
+#' # Parallel execution (Windows)
+#' results <- v.fgsea(
+#'   ref_vecs, data_vecs,
+#'   BPPARAM = SnowParam(workers = 2)
+#' )
+#'
+#' # With reproducibility
+#' results <- v.fgsea(
+#'   ref_vecs, data_vecs,
+#'   BPPARAM = MulticoreParam(workers = 2, RNGseed = 123)
+#' )
+#'
+#' @importFrom fgsea fgseaMultilevel
+#' @importFrom BiocParallel bplapply SerialParam MulticoreParam SnowParam
+#' @export
+v.fgsea <- function(ref_vecs,
+                    data_vecs,
+                    scoreType = "std",
+                    eps = 1e-50,
+                    BPPARAM = NULL,
+                    ...) {
+
+  # Input validation
+  if (!is.list(ref_vecs) || !is.list(data_vecs)) {
+    stop("'ref_vecs' and 'data_vecs' must be named lists")
+  }
+
+  if (is.null(names(ref_vecs)) || is.null(names(data_vecs))) {
+    stop("'ref_vecs' and 'data_vecs' must have names")
+  }
+
+  # Find matching names
+  common_names <- intersect(names(ref_vecs), names(data_vecs))
+
+  if (length(common_names) == 0) {
+    stop("No matching names between 'ref_vecs' and 'data_vecs'")
+  }
+
+  # Filter to only matching pairs
+  ref_vecs <- ref_vecs[common_names]
+  data_vecs <- data_vecs[common_names]
+
+  # Set up parallel backend if not provided
+  if (is.null(BPPARAM)) {
+    BPPARAM <- BiocParallel::SerialParam()
+  }
+
+  # Define function to run on each pair
+  run_pair <- function(name) {
+    ref <- ref_vecs[[name]]
+    data <- data_vecs[[name]]
+
+    tryCatch({
+      result <- fgsea_wrapper(
+        ref = ref,
+        data = data,
+        scoreType = scoreType,
+        eps = eps,
+        ...
+      )
+
+      if (is.null(result)) {
+        return(data.frame(
+          name = name,
+          ES = NA,
+          NES = NA,
+          pval = NA,
+          padj = NA,
+          log2err = NA,
+          size = 0,
+          leadingEdge = I(list(character(0))),
+          stringsAsFactors = FALSE
+        ))
+      }
+
+      return(data.frame(
+        name = name,
+        ES = result$ES,
+        NES = result$NES,
+        pval = result$pval,
+        padj = result$padj,
+        log2err = result$log2err,
+        size = result$size,
+        leadingEdge = I(list(result$leadingEdge)),
+        stringsAsFactors = FALSE
+      ))
+    }, error = function(e) {
+      warning(sprintf("Error processing '%s': %s", name, e$message))
+      return(data.frame(
+        name = name,
+        ES = NA,
+        NES = NA,
+        pval = NA,
+        padj = NA,
+        log2err = NA,
+        size = 0,
+        leadingEdge = I(list(character(0))),
+        stringsAsFactors = FALSE
+      ))
+    })
+  }
+
+  # Run analysis with BiocParallel
+  results_list <- BiocParallel::bplapply(
+    X = common_names,
+    FUN = run_pair,
+    BPPARAM = BPPARAM
+  )
+
+  # Combine results
+  results_df <- do.call(rbind, results_list)
+  rownames(results_df) <- NULL
+
+  # Recompute FDR across all tests
+  valid_pvals <- !is.na(results_df$pval)
+  if (any(valid_pvals)) {
+    results_df$padj[valid_pvals] <- p.adjust(
+      results_df$pval[valid_pvals],
+      method = "BH"
+    )
+  }
+
+  return(results_df)
 }
 
 #' Calculate Jaccard Similarity for Multiple Pairs of Sets

@@ -9,16 +9,23 @@
 #' @param pred_sigs A named list of genesets.
 #' @param true_sigs A named list of genesets containing both the cutoff signature `up` and the full signature `up_full`.
 #' @param source A character string describing the starting biological context.
+#' @param BPPARAM A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.
 #'
 #' @return A data frame with evaluation results. Each row corresponds to a perturbation and context.
 #'
+#' @importFrom fgsea fgseaMultilevel
+#' @importFrom BiocParallel bplapply SerialParam MulticoreParam SnowParam
 #' @export
 sig_eval_table <- function(source_sigs,
                            pred_sigs,
                            true_sigs,
-                           source = "source_context") {
+                           source = "source_context",
+                           BPPARAM = NULL) {
+
   dest_short_sigs <- lapply(true_sigs, function(x) x$up)
   dest_full_sigs <- lapply(true_sigs, function(x) x$up_full)
+
+  # Jaccard
   jacc_source_dest <- v.jaccard(pred_sigs, dest_short_sigs)
 
   # Displacement
@@ -26,21 +33,35 @@ sig_eval_table <- function(source_sigs,
   n_displaced <- unname(unlist(lapply(displaced, function(x) x$displaced)))
   n_not_displaced <- unname(unlist(lapply(displaced, function(x) x$not_displaced)))
 
-  # KS.Test (Ranks of Top n recontextualized compared to Full list of dest)
-  ks_obj <- v.ks.test(data_vecs = pred_sigs,
-                      ref_vecs = dest_full_sigs)
-  Ds <- ks_obj$D_stats
-  p_vals <- ks_obj$p_vals
+  # Set default BPPARAM if not provided
+  if (is.null(BPPARAM)) {
+    BPPARAM <- BiocParallel::SerialParam()
+  }
 
+  #Rank-based enrichment
+  fgsea_results <- v.fgsea(
+    ref_vecs = dest_full_sigs,
+    data_vecs = pred_sigs,
+    BPPARAM = BPPARAM
+  )
+
+  # Create evaluation data frame with fgsea results
   eval_df <- data.frame(
     source = source,
     displaced = n_displaced,
     kept = n_not_displaced,
     gene = names(pred_sigs),
     jacc = jacc_source_dest,
-    k_d = Ds,
-    k_p = p_vals
+    ES = fgsea_results$ES,
+    NES = fgsea_results$NES,
+    pval = fgsea_results$pval,
+    padj = fgsea_results$padj,
+    log2err = fgsea_results$log2err,
+    size = fgsea_results$size,
+    leadingEdge <- fgsea_results$leadingEdge,
+    stringsAsFactors = FALSE
   )
+
   return(eval_df)
 }
 
