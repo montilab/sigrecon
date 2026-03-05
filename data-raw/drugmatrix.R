@@ -114,6 +114,12 @@ extract_signatures <- function(de_table, gene_symbol_col_in_table, fc_thresh = 0
     dplyr::arrange(logFC_adjpval) %>%
     dplyr::pull(!!sym(gene_symbol_col_in_table))
 
+  # Removing duplicates
+  up_sig <- up_sig[!duplicated(up_sig)]
+  up_full_sig <- up_full_sig[!duplicated(up_full_sig)]
+  dn_sig <- dn_sig[!duplicated(dn_sig)]
+  dn_full_sig <- dn_full_sig[!duplicated(dn_full_sig)]
+
   # Apply max_signature limit
   up_sig_f <- up_sig[1:min(length(up_sig), max_sig)]
   dn_sig_f <- dn_sig[1:min(length(dn_sig), max_sig)]
@@ -125,11 +131,12 @@ extract_signatures <- function(de_table, gene_symbol_col_in_table, fc_thresh = 0
   dn_full_sig <- dn_full_sig[dn_full_sig != ""]
 
   # Return results if significant genes are found for shortlisted signatures
-  if (length(up_sig_f) >= 10 && length(dn_sig_f) >= 10) {
+  if (length(up_sig_f) >= 5) {
     sigs_result <- list(up = up_sig_f, dn = dn_sig_f,
                         up_full = up_full_sig, dn_full = dn_full_sig)
   } else {
-    message(paste("Warning: Not enough significant genes for shortlist for this table (up:", length(up_sig_f), ", dn:", length(dn_sig_f), "). Full lists still provided."))
+    message(paste("Warning: Not enough significant genes for shortlist for this table (up:", length(up_sig_f)))
+    sigs_result <- NULL
   }
   return(sigs_result)
 }
@@ -226,11 +233,13 @@ liver_sigs <- readRDS(file.path(PATH, "data/sigs/drugmatrix/liver_shortlist_sigs
 
 kidney_sigs <- lapply(kidney_sigs, function(x) x[c("up", "up_full")])
 liver_sigs <- lapply(liver_sigs, function(x) x[c("up", "up_full")])
+
 shared_drugs <- intersect(names(kidney_sigs), names(liver_sigs))
 kidney_sigs <- kidney_sigs[shared_drugs]
 liver_sigs <- liver_sigs[shared_drugs]
 
 drugmatrix.liver <- liver_sigs
 drugmatrix.kidney <- kidney_sigs
+
 usethis::use_data(drugmatrix.liver, overwrite= TRUE)
 usethis::use_data(drugmatrix.kidney, overwrite = TRUE)

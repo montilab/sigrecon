@@ -15,9 +15,9 @@ perturbseq.rpe1
 }
 \description{
 DEGs between drug (max dose) and control samples in RPE1 cell line data.
-There are 642 CRISPRi knockdowns and DEGs are HGNC symbols.
+There are 1297 CRISPRi knockdowns and DEGs are HGNC symbols.
 For each geneset, the \code{up} set represents the top 100 DEGs
-and the \code{up_full} represents the full ranked list of 8748 genes ranked by logFC*-log10(adj.p.val).
-The single cell dataset these genesets were derived from had 8748 genes.
+and the \code{up_full} represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+The length of \code{up_full} ranges from 438 - 8749 based on the perturbation.
 }
 \keyword{datasets}

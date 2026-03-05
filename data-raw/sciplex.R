@@ -236,9 +236,15 @@ saveRDS(a549_sig_list, file.path(PATH, "data/sigs/sciplex/a549_sigs_filtered.rds
 mcf7_sig_list <- readRDS(file.path(PATH, "data/sigs/sciplex/mcf7_sigs_filtered.rds"))
 k562_sig_list <- readRDS(file.path(PATH, "data/sigs/sciplex/k562_sigs_filtered.rds"))
 a549_sig_list <- readRDS(file.path(PATH, "data/sigs/sciplex/a549_sigs_filtered.rds"))
+
 sciplex.mcf7 <- mcf7_sig_list
 sciplex.k562 <- k562_sig_list
 sciplex.a549 <- a549_sig_list
+
+shared_pbs_post_filtering <- intersect(intersect(names(sciplex.mcf7), names(sciplex.k562)), names(sciplex.a549))
+sciplex.mcf7 <- sciplex.mcf7[shared_pbs_post_filtering]
+sciplex.k562 <- sciplex.k562[shared_pbs_post_filtering]
+sciplex.a549 <- sciplex.a549[shared_pbs_post_filtering]
 
 usethis::use_data(sciplex.mcf7, overwrite = TRUE)
 usethis::use_data(sciplex.k562, overwrite = TRUE)

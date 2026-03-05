@@ -108,5 +108,13 @@ stopifnot(all.equal(names(rpe1_sigs), names(k562_sigs)))
 perturbseq.k562 <- k562_sigs
 perturbseq.rpe1 <- rpe1_sigs
 
+# Filtering to perturbations with a reasonable number of DEGS (arbitrarily set as 5)
+perturbseq.k562 <- perturbseq.k562[lapply(perturbseq.k562, function(x) (length(x$up) >= 5)) %>% unlist]
+perturbseq.rpe1 <- perturbseq.rpe1[lapply(perturbseq.rpe1, function(x) (length(x$up) >= 5)) %>% unlist]
+
+shared_pbs <- intersect(names(perturbseq.k562), names(perturbseq.rpe1))
+perturbseq.k562 <- perturbseq.k562[shared_pbs]
+perturbseq.rpe1 <- perturbseq.rpe1[shared_pbs]
+
 usethis::use_data(perturbseq.k562, overwrite = TRUE)
 usethis::use_data(perturbseq.rpe1, overwrite = TRUE)

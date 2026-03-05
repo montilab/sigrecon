@@ -15,9 +15,9 @@ perturbseq.k562
 }
 \description{
 DEGs between drug (max dose) and control samples in K562 cell line data.
-There are 642 CRISPRi knockdowns and DEGs are HGNC symbols.
+There are 1297 CRISPRi knockdowns and DEGs are HGNC symbols.
 For each geneset, the \code{up} set represents the top 100 DEGs
-and the \code{up_full} represents the full ranked list of 8561 genes ranked by logFC*-log10(adj.p.val).
-The single cell dataset these genesets were derived from had 8561 genes.
+and the \code{up_full} represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+The length of \code{up_full} ranges from 429 - 8563 based on the perturbation.
 }
 \keyword{datasets}
