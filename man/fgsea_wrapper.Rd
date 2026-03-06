@@ -4,7 +4,7 @@
 \alias{fgsea_wrapper}
 \title{fgsea wrapper for gene symbol vectors}
 \usage{
-fgsea_wrapper(ref, data, scoreType = "std", eps = 1e-50, ...)
+fgsea_wrapper(ref, data, scoreType = "std", eps = 1e-50)
 }
 \arguments{
 \item{ref}{Vector of gene symbols representing the full ranked list (with weights)}
@@ -14,8 +14,6 @@ fgsea_wrapper(ref, data, scoreType = "std", eps = 1e-50, ...)
 \item{scoreType}{GSEA score type: "std" (default), "pos", or "neg"}
 
 \item{eps}{Precision for p-value calculation (default: 1e-50)}
-
-\item{...}{Additional arguments passed to fgseaMultilevel}
 }
 \value{
 A list with fgsea results (ES, NES, pval, padj, leadingEdge, size)

@@ -1,12 +1,12 @@
-PATH <- file.path(Sys.getenv("MLAB"), "projects/brcameta/sig_recon")
-source(file.path(PATH, "scripts/recontextualize.R"))
+# test seeds
+hnsc_seed <- c("MTOR","MUC4","TP63","TSC2","MUC16","PTPRD","PTPRT","NOTCH1","TGFBR2")
+brca_seed <- c("RB1","AKT1","CDH1","FLNA","IRS4","TP53","CCND1","EP300","FBLN2","GATA3")
 
-# Load test Igraph
-tcga_brca_wgcna <- readRDS(file = file.path(PATH, paste0("data/wgcna_networks/unsplit/", "TCGA-BRCA.rds")))
-
-# Loading test seeds
-hnsc_seed <- readRDS(file.path(PATH, "data/cancer_genes/hnsc_seed.rds"))
-brca_seed <- readRDS(file.path(PATH, "data/cancer_genes/brca_seed.rds"))
+# Create toy igraph with vertex names and edge weights
+all_genes <- union(hnsc_seed, brca_seed)
+tcga_brca_wgcna <- igraph::make_full_graph(length(all_genes))
+igraph::V(tcga_brca_wgcna)$name <- all_genes
+igraph::E(tcga_brca_wgcna)$weight <- runif(igraph::ecount(tcga_brca_wgcna), min = 0.1, max = 1)
 
 combined_seed <- list(hnsc=hnsc_seed, brca=brca_seed)
 
@@ -66,8 +66,6 @@ test_that("Random Walk Components Work", {
   result <- random_walk(tcga_brca_wgcna, seed_mat = seed_matrix(tcga_brca_wgcna, combined_seed), normalize="row", restart=1)
   expect_true(all(result[hnsc_seed,"hnsc"] == 1/length(hnsc_seed)))
   expect_true(all(result[brca_seed,"brca"] == 1/length(brca_seed)))
-
-  ## If restart value is 0, you should reach stationary distribution.
 
 })
 

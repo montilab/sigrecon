@@ -429,7 +429,6 @@ make_bpparam <- function(workers = 1,
 #' @param data Vector of gene symbols representing the gene set/pathway to test
 #' @param scoreType GSEA score type: "std" (default), "pos", or "neg"
 #' @param eps Precision for p-value calculation (default: 1e-50)
-#' @param ... Additional arguments passed to fgseaMultilevel
 #' @return A list with fgsea results (ES, NES, pval, padj, leadingEdge, size)
 #'
 #' @examples
@@ -444,8 +443,7 @@ make_bpparam <- function(workers = 1,
 fgsea_wrapper <- function(ref,
                           data,
                           scoreType = "std",
-                          eps = 1e-50,
-                          ...) {
+                          eps = 1e-50) {
 
   # Input validation
   if (length(ref) == 0) {
@@ -487,8 +485,7 @@ fgsea_wrapper <- function(ref,
     pathways = pathways,
     stats = stats,
     scoreType = scoreType,
-    eps = eps,
-    ...
+    eps = eps
   )
 
   # Extract and format results
@@ -512,7 +509,6 @@ fgsea_wrapper <- function(ref,
 #' @param BPPARAM A BiocParallelParam object specifying parallel backend.
 #'   If NULL, automatically selects appropriate backend based on platform.
 #'   See \code{BiocParallel::BiocParallelParam} for options.
-#' @param ... Additional arguments passed to fgseaMultilevel
 #' @return A data frame with fgsea results for each ref-data pair
 #'
 #' @examples
@@ -558,8 +554,7 @@ v.fgsea <- function(ref_vecs,
                     data_vecs,
                     scoreType = "std",
                     eps = 1e-50,
-                    BPPARAM = NULL,
-                    ...) {
+                    BPPARAM = NULL) {
 
   # Input validation
   if (!is.list(ref_vecs) || !is.list(data_vecs)) {
@@ -596,8 +591,7 @@ v.fgsea <- function(ref_vecs,
         ref = ref,
         data = data,
         scoreType = scoreType,
-        eps = eps,
-        ...
+        eps = eps
       )
 
       if (is.null(result)) {

@@ -4,14 +4,7 @@
 \alias{v.fgsea}
 \title{Vectorized fgsea wrapper for multiple gene set comparisons}
 \usage{
-v.fgsea(
-  ref_vecs,
-  data_vecs,
-  scoreType = "std",
-  eps = 1e-50,
-  BPPARAM = NULL,
-  ...
-)
+v.fgsea(ref_vecs, data_vecs, scoreType = "std", eps = 1e-50, BPPARAM = NULL)
 }
 \arguments{
 \item{ref_vecs}{Named list of ranked gene symbol vectors (each is a full ranked list)}
@@ -25,8 +18,6 @@ v.fgsea(
 \item{BPPARAM}{A BiocParallelParam object specifying parallel backend.
 If NULL, automatically selects appropriate backend based on platform.
 See \code{BiocParallel::BiocParallelParam} for options.}
-
-\item{...}{Additional arguments passed to fgseaMultilevel}
 }
 \value{
 A data frame with fgsea results for each ref-data pair
