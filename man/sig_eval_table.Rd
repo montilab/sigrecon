@@ -8,7 +8,9 @@ sig_eval_table(
   source_sigs,
   pred_sigs,
   true_sigs,
+  splits = FALSE,
   source = "source_context",
+  target = "target_context",
   BPPARAM = NULL
 )
 }
@@ -19,7 +21,11 @@ sig_eval_table(
 
 \item{true_sigs}{A named list of genesets containing both the cutoff signature \code{up} and the full signature \code{up_full}.}
 
+\item{splits}{Boolean, indicating whether \code{pred_sigs} is a named list of splits, each split containing a separate list of geneset predictions.}
+
 \item{source}{A character string describing the starting biological context.}
+
+\item{target}{A character string describing the target biological context.}
 
 \item{BPPARAM}{A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.}
 }

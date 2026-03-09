@@ -8,7 +8,9 @@
 #' @param source_sigs A named list of genesets.
 #' @param pred_sigs A named list of genesets.
 #' @param true_sigs A named list of genesets containing both the cutoff signature `up` and the full signature `up_full`.
+#' @param splits Boolean, indicating whether `pred_sigs` is a named list of splits, each split containing a separate list of geneset predictions.
 #' @param source A character string describing the starting biological context.
+#' @param target A character string describing the target biological context.
 #' @param BPPARAM A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.
 #'
 #' @return A data frame with evaluation results. Each row corresponds to a perturbation and context.
@@ -19,48 +21,89 @@
 sig_eval_table <- function(source_sigs,
                            pred_sigs,
                            true_sigs,
+                           splits = FALSE,
                            source = "source_context",
+                           target = "target_context",
                            BPPARAM = NULL) {
-
-  dest_short_sigs <- lapply(true_sigs, function(x) x$up)
-  dest_full_sigs <- lapply(true_sigs, function(x) x$up_full)
-
-  # Jaccard
-  jacc_source_dest <- v.jaccard(pred_sigs, dest_short_sigs)
-
-  # Displacement
-  displaced <- count_displaced_genes(recon_sig = pred_sigs, seed_sig = source_sigs)
-  n_displaced <- unname(unlist(lapply(displaced, function(x) x$displaced)))
-  n_not_displaced <- unname(unlist(lapply(displaced, function(x) x$not_displaced)))
 
   # Set default BPPARAM if not provided
   if (is.null(BPPARAM)) {
     BPPARAM <- BiocParallel::SerialParam()
   }
 
-  #Rank-based enrichment
-  fgsea_results <- v.fgsea(
-    ref_vecs = dest_full_sigs,
-    data_vecs = pred_sigs,
-    BPPARAM = BPPARAM
-  )
+  sig_eval_helper <- function(source_sigs,
+                              pred_sigs,
+                              true_sigs,
+                              source,
+                              target,
+                              BPPARAM) {
 
-  # Create evaluation data frame with fgsea results
-  eval_df <- data.frame(
-    source = source,
-    displaced = n_displaced,
-    kept = n_not_displaced,
-    gene = names(pred_sigs),
-    jacc = jacc_source_dest,
-    ES = fgsea_results$ES,
-    NES = fgsea_results$NES,
-    pval = fgsea_results$pval,
-    padj = fgsea_results$padj,
-    log2err = fgsea_results$log2err,
-    size = fgsea_results$size,
-    leadingEdge <- fgsea_results$leadingEdge,
-    stringsAsFactors = FALSE
-  )
+    # Separating Top 100 and Full-ranked true signatures
+    dest_short_sigs <- lapply(true_sigs, function(x) x$up)
+    dest_full_sigs <- lapply(true_sigs, function(x) x$up_full)
+
+    # Jaccard
+    jacc_source_dest <- v.jaccard(pred_sigs, dest_short_sigs)
+
+    # Displacement
+    displaced <- count_displaced_genes(recon_sig = pred_sigs, seed_sig = source_sigs)
+    n_displaced <- unname(unlist(lapply(displaced, function(x) x$displaced)))
+    n_not_displaced <- unname(unlist(lapply(displaced, function(x) x$not_displaced)))
+
+    #Rank-based enrichment
+    fgsea_results <- v.fgsea(
+      ref_vecs = dest_full_sigs,
+      data_vecs = pred_sigs,
+      BPPARAM = BPPARAM
+    )
+
+    # Create evaluation data frame with fgsea results
+    eval_df <- data.frame(
+      source = source,
+      target = target,
+      displaced = n_displaced,
+      kept = n_not_displaced,
+      gene = names(pred_sigs),
+      jacc = jacc_source_dest,
+      ES = fgsea_results$ES,
+      NES = fgsea_results$NES,
+      pval = fgsea_results$pval,
+      padj = fgsea_results$padj,
+      log2err = fgsea_results$log2err,
+      size = fgsea_results$size,
+      leadingEdge <- fgsea_results$leadingEdge,
+      stringsAsFactors = FALSE
+    )
+
+    return(eval_df)
+  }
+
+  if(splits) {
+    n_splits <- length(pred_sigs)
+    eval_dfs <- list()
+    for (split in 1:n_splits) {
+      message(paste0("Processing Split ", split))
+      pred_sigs_split <- pred_sigs[[split]]
+      eval_df <- sig_eval_helper(source_sigs = source_sigs,
+                                 pred_sigs = pred_sigs_split,
+                                 true_sigs = true_sigs,
+                                 source = source,
+                                 target = target,
+                                 BPPARAM = BPPARAM
+                                 )
+      eval_df$split <- split
+      eval_dfs[[split]] <- eval_df
+    }
+    eval_df <- dplyr::bind_rows(eval_dfs)
+  } else {
+    eval_df <- sig_eval_helper(source_sigs = source_sigs,
+                               pred_sigs = pred_sigs,
+                               true_sigs = true_sigs,
+                               source = source,
+                               target = target,
+                               BPPARAM = BPPARAM
+                               )
+  }
 
   return(eval_df)
 }
