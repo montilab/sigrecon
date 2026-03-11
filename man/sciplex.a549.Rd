@@ -15,7 +15,7 @@ sciplex.a549
 }
 \description{
 DEGs between drug (max dose) and control samples in SciPlex A549 cell line data.
-There are 29 drugs and DEGs are EnsemblIDs.
+There are 23 drugs and DEGs are EnsemblIDs.
 For each geneset, the \code{up} set represents the top 100 DEGs
 and the \code{up_full} represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
 The length of \code{up_full} ranges from 2789 - 15469 based on the perturbation.

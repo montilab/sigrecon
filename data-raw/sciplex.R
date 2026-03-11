@@ -92,7 +92,7 @@ sig_dfs <- foreach(drug = a549_drugs, .combine = dplyr::bind_rows) %dopar% {
 
   dds <- DESeqDataSetFromMatrix(countData = subset_counts,
                                 colData = subset_meta,
-                                design = ~ product_name)
+                                design = ~ replicate + product_name)
 
   # Run DESeq
   dds <- DESeq(dds)
@@ -136,7 +136,7 @@ sig_dfs <- foreach(drug = k562_drugs, .combine = dplyr::bind_rows) %dopar% {
   }
   dds <- DESeqDataSetFromMatrix(countData = subset_counts,
                                 colData = subset_meta,
-                                design = ~ product_name)
+                                design = ~ replicate + product_name)
 
   # Run DESeq
   dds <- DESeq(dds)
@@ -181,7 +181,7 @@ sig_dfs <- foreach(drug = mcf7_drugs, .combine = dplyr::bind_rows) %dopar% {
   }
   dds <- DESeqDataSetFromMatrix(countData = subset_counts,
                                 colData = subset_meta,
-                                design = ~ product_name)
+                                design = ~ replicate + product_name)
 
   # Run DESeq
   dds <- DESeq(dds)
