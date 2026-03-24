@@ -202,14 +202,23 @@ saveRDS(tahoe_sigs, file.path(PATH, "data/tahoe/tahoe_sigs.rds"))
 
 pbs <- lapply(tahoe_sigs, function(x) names(x)) %>% purrr::reduce(., intersect)
 tahoe_sigs_filtered <- lapply(tahoe_sigs, function(x) x[pbs])
-saveRDS(tahoe_sigs_filtered, file.path(PATH, "data/tahoe/tahoe_sigs_filtered.rds"))
+sig_list <- list()
+# Drugs need to have at least 5 up-regulated genes
+for(cell_line in names(tahoe_sigs_filtered)) {
+  cell_line_data <- tahoe_sigs_filtered[[cell_line]]
+  cell_line_data <- cell_line_data[lapply(cell_line_data, function(x) (length(x$up) >= 5)) %>% unlist]
+  sig_list[[cell_line]] <- cell_line_data
+}
+# Cell lines need to have at least 5 drugs
+sig_list <- sig_list[lapply(sig_list, function(x) length(x) > 5) %>% unlist]
+saveRDS(sig_list, file.path(PATH, "data/tahoe/tahoe_sigs_filtered.rds"))
 
 for (cell_line in names(tahoe_sigs_filtered)) {
   cell_line_new <- str_replace_all(cell_line, "-", "_")
   cell_line_new <- str_replace_all(cell_line_new, " ", "")
   cell_line_new <- str_replace_all(cell_line_new, "/", "_")
   var_name <- paste0("tahoe.", tolower(cell_line_new))
-  assign(var_name, tahoe_sigs_filtered[[cell_line]])
+  assign(var_name, sig_list[[cell_line]])
   eval(bquote(usethis::use_data(.(as.name(var_name)), overwrite = TRUE)))
 }
 
