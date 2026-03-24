@@ -7,10 +7,11 @@ library(SeuratDisk)
 library(Matrix)
 library(doParallel)
 library(DESeq2)
+library(org.Hs.eg.db)
+library(AnnotationDbi)
 registerDoParallel(15)
 PATH <- file.path(Sys.getenv("MLAB"), "projects/brcameta/projects/sig_recon")
-DATAPATH <- file.path(Sys.getenv("CBM"), "otherStudies/perturbational_data/tahoe")
-do_save <- FALSE
+do_save <- TRUE
 
 rm_low_rnaseq_counts <- function(
     eset,
@@ -82,27 +83,29 @@ rm_low_rnaseq_counts <- function(
 
 if (do_save) {
   # Loading data
-  adata <- anndata::read_h5ad(file.path(DATAPATH, "pseudobulk/merged_pseudobulk.h5ad"))
+  adata <- anndata::read_h5ad(file.path(PATH, "data/tahoe/pseudobulk/merged_pseudobulk.h5ad"))
   # Convert dgRMatrix to dgCMatrix and transpose
   mat_t <- as(adata$X, "CsparseMatrix")      # Convert to dgCMatrix
   mat_c_t <- t(mat_t)
   seurat_obj <- CreateSeuratObject(counts = mat_c_t,
                                    meta.data = adata$obs)
 
-  saveRDS(seurat_obj, file.path(DATAPATH, "pseudobulk/merged_pseudobulk.rds"))
+  saveRDS(seurat_obj, file.path(PATH, "data/tahoe/pseudobulk/merged_pseudobulk.rds"))
+
+  highest_dose_filter_metadata <- seurat_obj@meta.data %>%
+    tibble::rownames_to_column(var = "cell_id") %>%
+    dplyr::mutate(drug_conc = as.numeric(drug_conc)) %>%
+    dplyr::group_by(cell_name, drug_name) %>%
+    dplyr::filter(drug_conc == max(drug_conc, na.rm = TRUE)) %>%
+    dplyr::ungroup()
+
+  seurat_obj_f <- seurat_obj[,highest_dose_filter_metadata$cell_id]
+  seurat_obj_f <- rm_low_rnaseq_counts(seurat_obj_f, min_samples = 3)
+
+  saveRDS(seurat_obj_f, file.path(PATH, "data/tahoe/pseudobulk/merged_pseudobulk_filtered.rds"))
 } else {
-  seurat_obj <- readRDS(file.path(DATAPATH, "pseudobulk/merged_pseudobulk.rds"))
+  seurat_obj_f <- readRDS(file.path(PATH, "data/tahoe/pseudobulk/merged_pseudobulk_filtered.rds"))
 }
-
-highest_dose_filter_metadata <- seurat_obj@meta.data %>%
-  tibble::rownames_to_column(var = "cell_id") %>%
-  dplyr::mutate(drug_conc = as.numeric(drug_conc)) %>%
-  dplyr::group_by(cell_name, drug_name) %>%
-  dplyr::filter(drug_conc == max(drug_conc, na.rm = TRUE)) %>%
-  dplyr::ungroup()
-
-seurat_obj_f <- seurat_obj[,highest_dose_filter_metadata$cell_id]
-seurat_obj_f <- rm_low_rnaseq_counts(seurat_obj_f, min_samples = 3)
 
 celllines <- seurat_obj_f$cell_name %>% unique
 drugs <- seurat_obj_f$drug_name %>% unique
@@ -130,7 +133,7 @@ sig_dfs <- foreach(cell = celllines, .combine = dplyr::bind_rows) %:%
     sub_count <- seurat_obj_f[,sub_cells]@assays$RNA$count
 
     # Run DESeq2
-    dds <- DESeqDataSetFromMatrix(countData = sub_count, colData = sub_meta, design = ~ condition)
+    dds <- DESeqDataSetFromMatrix(countData = sub_count, colData = sub_meta, design = ~ condition + plate)
     dds <- DESeq(dds)
     res <- results(dds, contrast = c("condition", "treatment", "control"))
     res_df <- as.data.frame(res)
@@ -144,7 +147,8 @@ sig_dfs <- foreach(cell = celllines, .combine = dplyr::bind_rows) %:%
     res_df
   }
 
-# saveRDS(sig_dfs, file.path(PATH, "data/tahoe/tahoe_deseq_dfs.rds"))
+saveRDS(sig_dfs, file.path(PATH, "data/tahoe/tahoe_deseq_dfs.rds"))
+
 tahoe_tbls <- readRDS(file.path(PATH, "data/tahoe/tahoe_deseq_dfs.rds"))
 sig_dfs <- tahoe_tbls %>%
   dplyr::group_by(cell_line, drug) %>%
@@ -181,7 +185,6 @@ map_ids <- function(genes) {
   return(genes)
 }
 
-
 tahoe_sigs <- list()
 for(sig_df in sig_dfs) {
   cell_line <- unique(sig_df$cell_line) %>% as.character
@@ -192,7 +195,7 @@ for(sig_df in sig_dfs) {
                           pval_col = "padj",
                           geneid_col = "gene")
   result <- lapply(result, function(x) lapply(x, function(y) map_ids(y)))
-  tahoe_sigs[[cell_line]] <- result
+  tahoe_sigs[[cell_line]][[drug]] <- result[[drug]]
 }
 
 saveRDS(tahoe_sigs, file.path(PATH, "data/tahoe/tahoe_sigs.rds"))
@@ -201,4 +204,12 @@ pbs <- lapply(tahoe_sigs, function(x) names(x)) %>% purrr::reduce(., intersect)
 tahoe_sigs_filtered <- lapply(tahoe_sigs, function(x) x[pbs])
 saveRDS(tahoe_sigs_filtered, file.path(PATH, "data/tahoe/tahoe_sigs_filtered.rds"))
 
-# usethis::use_data(tahoe_sigs_filtered)
+for (cell_line in names(tahoe_sigs_filtered)) {
+  cell_line_new <- str_replace_all(cell_line, "-", "_")
+  cell_line_new <- str_replace_all(cell_line_new, " ", "")
+  cell_line_new <- str_replace_all(cell_line_new, "/", "_")
+  var_name <- paste0("tahoe.", tolower(cell_line_new))
+  assign(var_name, tahoe_sigs_filtered[[cell_line]])
+  eval(bquote(usethis::use_data(.(as.name(var_name)), overwrite = TRUE)))
+}
+
