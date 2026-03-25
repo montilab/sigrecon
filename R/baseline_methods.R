@@ -68,6 +68,7 @@ gsva_recon <- function(sce,
 #' @return A binary matrix where rows represent genes in the graph and columns represent seed sets.
 #'
 #' @importFrom igraph V
+#' @importFrom Matrix sparseMatrix
 seed_matrix <- function(ig,
                         seeds,
                         bootstrap = FALSE,
@@ -80,40 +81,48 @@ seed_matrix <- function(ig,
   if (is.null(names(seeds))) stop("Seed signature needs name")
 
   gene_names <- igraph::V(ig)$name
+  gene_idx <- setNames(seq_along(gene_names), gene_names)
   n_pbs <- length(seeds)
 
   # Create Seed Matrix
   if (bootstrap) {
     bins_filter <- bin_presence(lapply(seeds, function(x) length(x)) %>% unlist)
-    n_bins <- sum(bins_filter)
-    mat <- matrix(0, nrow = length(gene_names), ncol = n_bins * n_bootstraps)
-    rownames(mat) <- gene_names
-    colnames(mat) <- bins_filter %>% which %>% names %>% rep(each = n_bootstraps)
+    present_bins <- which(bins_filter)
+    n_bins <- length(present_bins)
+    n_cols <- n_bins * n_bootstraps
+    row_indices <- vector("list", n_cols)
+    colnames_mat <- names(present_bins) %>% rep(each = n_bootstraps)
 
     # If bootstrap matrix is (n_genes, n_bootstraps x n_bins)
-    for (present_bin in seq_along(which(bins_filter))) {
-      bin <- which(bins_filter)[present_bin]
-      for (i in 1:n_bootstraps) {
+    for (present_bin in seq_along(present_bins)) {
+      bin <- present_bins[present_bin]
+      for (i in seq_len(n_bootstraps)) {
         # Sample a random set of genes with size sampled between bin end-points
         last_digit <- i %% 10
         last_digit <- ifelse(last_digit == 0, 10, last_digit)
 
         sample_size <- (bin - 1) * 10 + last_digit
-        genes <- sample(gene_names, sample_size)
+        genes <- sample.int(length(gene_names), sample_size)
 
         bin_col <- (present_bin-1) * n_bootstraps + i
-        mat[genes, bin_col] <- 1
+        row_indices[[bin_col]] <- genes
       }
     }
+
+    mat <- Matrix::sparseMatrix(i = unlist(row_indices, use.names = FALSE),
+                                j = rep(seq_len(n_cols), lengths(row_indices)),
+                                x = 1,
+                                dims = c(length(gene_names), n_cols),
+                                dimnames = list(gene_names, colnames_mat))
   } else {
-    mat <- matrix(0, nrow = length(gene_names), ncol = n_pbs)
-    rownames(mat) <- gene_names
-    colnames(mat) <- names(seeds)
-    # If not bootstrap matrix is (n_genes, n_seeds)
-    for (seed_name in names(seeds)) {
-      genes <- seeds[[seed_name]]
-      mat[genes, seed_name] <- 1
-    }
+    row_indices <- unlist(lapply(seeds, function(genes) unname(gene_idx[genes])), use.names = FALSE)
+    col_indices <- rep(seq_len(n_pbs), lengths(seeds))
+
+    mat <- Matrix::sparseMatrix(i = row_indices,
+                                j = col_indices,
+                                x = 1,
+                                dims = c(length(gene_names), n_pbs),
+                                dimnames = list(gene_names, names(seeds)))
   }
 
   return(mat)
@@ -150,24 +159,14 @@ rwr_mat <- function(ig,
   normalize <- match.arg(normalize)
 
   seed_mat <- seed_matrix(ig, seeds, bootstrap = bootstrap, n_bootstraps = n_bootstraps)
-
-  if (avg_p) {
-    end <- avg_p_vals[2]
-    start <- avg_p_vals[1]
-    avg_p_seq <- seq(start, end, length.out = avg_p_length)
-
-    mat <- matrix(0, nrow = nrow(seed_mat), ncol = ncol(seed_mat))
-    rownames(mat) <- rownames(seed_mat)
-    colnames(mat) <- colnames(seed_mat)
-
-    for (restart_val in avg_p_seq) {
-      rwr <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart_val, epsilon = epsilon, normalize = normalize)
-      mat <- mat + rwr
-    }
-    mat <- mat/avg_p_length
-  } else {
-    mat <- random_walk(ig = ig, seed_mat = seed_mat, restart = restart, epsilon = epsilon, normalize = normalize)
-  }
+  transition_mat <- prepare_rwr_transition(ig = ig, normalize = normalize)
+  mat <- rwr_from_seed_matrix(transition_mat = transition_mat,
+                              seed_mat = seed_mat,
+                              restart = restart,
+                              avg_p = avg_p,
+                              avg_p_vals = avg_p_vals,
+                              avg_p_length = avg_p_length,
+                              epsilon = epsilon)
 
   return(mat)
 }
@@ -198,20 +197,27 @@ extract_sig_mat <- function(mat,
 
   if(!is.null(bootstraps)) {
     # Extract top n signatures based on gene-level comparison with bootstraps
-    percentiles <- matrix(NA, nrow = nrow(mat), ncol = ncol(mat))
-    colnames(percentiles) <- colnames(mat)
-    rownames(percentiles) <- rownames(mat)
     intervals <- unique(colnames(bootstraps))
-    for(i in 1:nrow(mat)) {
-      for(j in 1:ncol(mat)) {
-        # Finding the matching bootstraps depending on the length of pb
-        pb_name <- colnames(percentiles)[j]
-        sig_bin <- sig_bins[[pb_name]]
-        bounds <- t(sapply(strsplit(intervals, "-"), as.numeric))
-        interval <- intervals[which(sig_bin >= bounds[,1] & sig_bin <= bounds[,2])]
-        bootstrap_idx <- which(colnames(bootstraps) == interval)
+    bounds <- t(vapply(strsplit(intervals, "-", fixed = TRUE), as.numeric, numeric(2)))
+    bootstrap_idx_by_interval <- split(seq_len(ncol(bootstraps)), colnames(bootstraps))
+    percentiles <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
 
-        percentiles[i,j] <- mean(bootstraps[i,bootstrap_idx] <= mat[i,j])
+    for (j in seq_len(ncol(mat))) {
+      pb_name <- colnames(mat)[j]
+      sig_bin <- sig_bins[[pb_name]]
+      interval <- intervals[which(sig_bin >= bounds[, 1] & sig_bin <= bounds[, 2])]
+      bootstrap_idx <- bootstrap_idx_by_interval[[interval]]
+      obs_col <- as.numeric(mat[, j])
+      bootstrap_subset <- bootstraps[, bootstrap_idx, drop = FALSE]
+
+      if (inherits(bootstrap_subset, "Matrix")) {
+        counts <- numeric(length(obs_col))
+        for (k in seq_len(ncol(bootstrap_subset))) {
+          counts <- counts + (as.numeric(bootstrap_subset[, k]) <= obs_col)
+        }
+        percentiles[, j] <- counts / ncol(bootstrap_subset)
+      } else {
+        percentiles[, j] <- rowMeans(bootstrap_subset <= obs_col)
       }
     }
     percentiles[percentiles < percentile] <- 0
@@ -228,7 +234,8 @@ extract_sig_mat <- function(mat,
     # Manually extract the 'top n' signatures set by limit parameter.
     for (col in 1:ncol(mat)) {
       colname <- colnames(mat)[[col]]
-      mat_col <- mat[, col]
+      mat_col <- as.numeric(mat[, col])
+      names(mat_col) <- rownames(mat)
       limit <- limits[[col]]
       sig <- sort(mat_col, decreasing = TRUE) %>%
         head(limit) %>%
@@ -328,22 +335,26 @@ network_sig <- function(ig,
     }
     net_sig <- correlated_sigs(corr_mat = cor_mat, seeds = seeds, limit = limit)
   } else if (sig == "rwr") {
-    obs_mat <- rwr_mat(ig,
-                       seeds,
-                       restart = p,
-                       avg_p = avg_p,
-                       avg_p_vals = avg_p_vals,
-                       avg_p_length = avg_p_length)
+    transition_mat <- prepare_rwr_transition(ig = ig, normalize = "row")
+    obs_seed_mat <- seed_matrix(ig, seeds)
+    obs_mat <- rwr_from_seed_matrix(transition_mat = transition_mat,
+                                    seed_mat = obs_seed_mat,
+                                    restart = p,
+                                    avg_p = avg_p,
+                                    avg_p_vals = avg_p_vals,
+                                    avg_p_length = avg_p_length)
     if(bootstrap & (p != 1)) {
       # If bootstrap matrix is (n_genes, n_bootstraps x n_bins)
-      mat_bootstraps <- rwr_mat(ig,
-                                seeds,
-                                restart = p,
-                                avg_p = avg_p,
-                                avg_p_vals = avg_p_vals,
-                                avg_p_length = avg_p_length,
-                                bootstrap = bootstrap,
-                                n_bootstraps = n_bootstraps) %>% as.matrix()
+      bootstrap_seed_mat <- seed_matrix(ig,
+                                        seeds,
+                                        bootstrap = bootstrap,
+                                        n_bootstraps = n_bootstraps)
+      mat_bootstraps <- rwr_from_seed_matrix(transition_mat = transition_mat,
+                                             seed_mat = bootstrap_seed_mat,
+                                             restart = p,
+                                             avg_p = avg_p,
+                                             avg_p_vals = avg_p_vals,
+                                             avg_p_length = avg_p_length)
 
       sig_bins <- lapply(seeds, length)
       net_sig <- extract_sig_mat(obs_mat, bootstraps = mat_bootstraps, sig_bins = sig_bins)
@@ -435,11 +446,21 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
 
   # Type checks
   stopifnot(is(ig) == "igraph")
-  stopifnot(is(seed_mat, "matrix"))
+  stopifnot(is(seed_mat, "matrix") || is(seed_mat, "Matrix"))
+  normalize <- match.arg(normalize)
+
+  transition_mat <- prepare_rwr_transition(ig = ig, normalize = normalize)
+  return(rwr_from_seed_matrix(transition_mat = transition_mat,
+                              seed_mat = seed_mat,
+                              restart = restart,
+                              epsilon = epsilon))
+}
+
+prepare_rwr_transition <- function(ig, normalize = c("row", "column", "laplacian", "none")) {
   normalize <- match.arg(normalize)
 
   # Get Adjacency matrix
-  if ("weight" %in% igraph::list.edge.attributes(ig)) {
+  if ("weight" %in% igraph::edge_attr_names(ig)) {
     adj_mat <- igraph::as_adjacency_matrix(ig, attr = "weight")
     adj_mat[is.na(adj_mat)] <- 0
     message("Using weighted graph")
@@ -463,14 +484,53 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
     nadjM <- adj_mat
   }
 
+  nadjM
+}
+
+normalize_seed_matrix <- function(seed_mat) {
+  norm_seed_mat <- seed_mat %*% Matrix::Diagonal(x = (Matrix::colSums(seed_mat))^(-1))
+  colnames(norm_seed_mat) <- colnames(seed_mat)
+  as(norm_seed_mat, "CsparseMatrix")
+}
+
+rwr_from_seed_matrix <- function(transition_mat,
+                                 seed_mat,
+                                 restart = 0.1,
+                                 avg_p = FALSE,
+                                 avg_p_vals = c(1e-4, 1e-1),
+                                 avg_p_length = 5,
+                                 epsilon = NULL) {
+  norm_seed_mat <- normalize_seed_matrix(seed_mat)
+
+  if (avg_p) {
+    avg_p_seq <- seq(avg_p_vals[1], avg_p_vals[2], length.out = avg_p_length)
+    mat <- Matrix::Matrix(0, nrow = nrow(norm_seed_mat), ncol = ncol(norm_seed_mat),
+                          dimnames = dimnames(norm_seed_mat), sparse = TRUE)
+
+    for (restart_val in avg_p_seq) {
+      mat <- mat + random_walk_from_transition(transition_mat = transition_mat,
+                                               norm_seed_mat = norm_seed_mat,
+                                               restart = restart_val,
+                                               epsilon = epsilon)
+    }
+    return(mat / avg_p_length)
+  }
+
+  random_walk_from_transition(transition_mat = transition_mat,
+                              norm_seed_mat = norm_seed_mat,
+                              restart = restart,
+                              epsilon = epsilon)
+}
+
+random_walk_from_transition <- function(transition_mat,
+                                        norm_seed_mat,
+                                        restart = 0.1,
+                                        epsilon = NULL) {
+  stopifnot(is(norm_seed_mat, "Matrix"))
+
   ## Stopping Criteria
   stop_delta <- 1e-5 # L1 norm of successive iterations of Transition Matrix multiplication
   stop_step <- 100 # maximum steps of iterations
-
-  # Normalize Seed Matrix
-  norm_seed_mat <- seed_mat %*% Matrix::Diagonal(x = (Matrix::colSums(seed_mat))^(-1))
-  colnames(norm_seed_mat) <- colnames(seed_mat)
-  norm_seed_mat <- as(norm_seed_mat, "CsparseMatrix")
 
   ## Initial Variables
   P0 <- norm_seed_mat
@@ -483,7 +543,7 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
   if (!is.null(epsilon)) {
     stopifnot(is(epsilon,"numeric"))
 
-    n_genes_seed_mean <- as.integer(mean(apply(seed_mat, 2, sum)))
+    n_genes_seed_mean <- as.integer(mean(Matrix::colSums(norm_seed_mat > 0)))
     n_explore <- as.integer(n_genes_seed_mean * epsilon)
     r <- 1
     paste0("Stopping Criterion: ", n_explore, " displaced genes.")
@@ -492,7 +552,7 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
   ## Dnet had the matrix multiplication orders flipped.
   ## This order keeps the distribution in columns after each multiplication.
   while (delta > stop_delta && step <= stop_step) {
-    PX <- (1 - r) * Matrix::t(Matrix::t(PT) %*% nadjM) + r * P0
+    PX <- (1 - r) * Matrix::t(Matrix::t(PT) %*% transition_mat) + r * P0
     delta <- sum(abs(PX - PT))
     PT <- PX
     step <- step + 1
@@ -511,4 +571,3 @@ random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize =
 
   return(PX)
 }
-
