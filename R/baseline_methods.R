@@ -1,48 +1,76 @@
-#' Reconstruct Gene Signatures Using GSVA Scores
+#' Reconstruct Gene Signatures Using Projection Scores
 #'
 #' @description
-#' This function reconstructs gene signatures based on their correlation with GSVA (Gene Set Variation Analysis) scores.
+#' This function reconstructs gene signatures based on their correlation with
+#' per-sample projection scores computed from the input signatures.
 #'
-#' @param sce A SingleCellExperiment object containing gene expression data.
+#' @param se A SummarizedExperiment object containing gene expression data.
 #' @param sigs A list of gene signatures, where each element is a character vector of gene names.
+#' @param score Scoring method used to score samples against input signatures.
+#'   Either `"gsva"` or `"AUCell"`. Default is `"gsva"`.
 #'
 #' @return A list of reconstructed gene signatures, with the same structure as the input `sigs`.
 #'
 #' @details
 #' The function performs the following steps:
-#' 1. Calculates GSVA scores for the input signatures.
-#' 2. Computes the correlation between gene expression and GSVA scores.
-#' 3. Ranks genes based on their correlation with each signature's GSVA score.
+#' 1. Calculates projection scores for the input signatures with either GSVA or AUCell.
+#' 2. Computes the correlation between gene expression and projection scores.
+#' 3. Ranks genes based on their correlation with each signature's projection scores.
 #' 4. Selects the top-ranking genes to form new signatures of the same length as the original ones.
 #'
-#' @note
-#' This function requires the GSVA, stats, and dplyr packages.
-#'
-#' @importFrom GSVA gsva
+#' @importFrom AUCell AUCell_buildRankings AUCell_calcAUC getAUC
+#' @importFrom GSVA gsva gsvaParam
 #' @importFrom stats cor
 #' @importFrom tibble as_tibble
 #' @importFrom dplyr arrange slice pull desc
 #'
 #' @export
-gsva_recon <- function(sce,
-                       sigs) {
+projectCor <- function(se,
+                       sigs,
+                       score = c("gsva", "AUCell")) {
+  score <- match.arg(score)
+  stopifnot(is(se, "SummarizedExperiment"))
 
-  # GSVA Scores
-  gsva_eset <- GSVA::gsva(sce, sigs, mx.diff = TRUE, verbose = FALSE)
+  expr_mat <- SummarizedExperiment::assay(se)
 
-  genes_data <- t(sce@assays@data$counts)
+  if (score == "gsva") {
+    score_param <- GSVA::gsvaParam(se, sigs, maxDiff = TRUE)
+    score_res <- GSVA::gsva(score_param, verbose = FALSE)
+    if (is(score_res, "SummarizedExperiment")) {
+      score_mat <- SummarizedExperiment::assay(score_res)
+    } else {
+      score_mat <- score_res
+    }
+  } else {
+    if (is(expr_mat, "sparseMatrix")) {
+      expr_mat <- as.matrix(expr_mat)
+    }
 
+    rankings <- AUCell::AUCell_buildRankings(exprMat = expr_mat,
+                                             plotStats = FALSE,
+                                             verbose = FALSE)
+    auc <- AUCell::AUCell_calcAUC(geneSets = sigs,
+                                  rankings = rankings,
+                                  verbose = FALSE)
+    score_mat <- AUCell::getAUC(auc)
+  }
+
+  genes_data <- t(expr_mat)
   if (is(genes_data, "sparseMatrix")) {
     genes_data <- as.matrix(genes_data)
   }
 
-  gsva_scores <- t(gsva_eset@assays@data$es)
-  corr_mat <- stats::cor(genes_data, gsva_scores, method = "pearson")
+  if (is(score_mat, "sparseMatrix")) {
+    score_mat <- as.matrix(score_mat)
+  }
+
+  proj_scores <- t(score_mat)
+  corr_mat <- stats::cor(genes_data, proj_scores, method = "pearson")
 
   results <- as_tibble(corr_mat, rownames="gene")
   new_sigs <- list()
-  for(sig_name in colnames(gsva_scores)) {
-    # Obtain Rank of Genes most correlated to GSVA scores
+  for(sig_name in colnames(proj_scores)) {
+    # Obtain rank of genes most correlated to the projection scores
     results$rank <- rank(dplyr::desc(results[[sig_name]]))
 
     # Obtain new signature
@@ -53,6 +81,11 @@ gsva_recon <- function(sce,
   }
 
   return(new_sigs)
+}
+
+gsva_recon <- function(se,
+                       sigs) {
+  projectCor(se = se, sigs = sigs, score = "gsva")
 }
 
 
