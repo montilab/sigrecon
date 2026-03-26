@@ -177,3 +177,123 @@
 #' @format Nested list of genesets
 #' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
 "gtex.aging"
+
+#' Tahoe A498 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe A498 cell line data.
+#' There are 108 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 3982 - 41479 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.a498"
+
+#' Tahoe HCT15 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe HCT15 cell line data.
+#' There are 105 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 2393 - 36874 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.hct15"
+
+#' Tahoe HEC-1-A Dataset
+#'
+#' DEGs between drug and control samples in Tahoe HEC-1-A cell line data.
+#' There are 109 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 3979 - 28808 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.hec_1_a"
+
+#' Tahoe LOVO Dataset
+#'
+#' DEGs between drug and control samples in Tahoe LOVO cell line data.
+#' There are 109 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 3968 - 27303 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.lovo"
+
+#' Tahoe MIAPACA-2 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe MIAPACA-2 cell line data.
+#' There are 109 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 7620 - 39047 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.miapaca_2"
+
+#' Tahoe NCI-H23 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe NCI-H23 cell line data.
+#' There are 108 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 5448 - 39771 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.nci_h23"
+
+#' Tahoe PANC03.27 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe PANC03.27 cell line data.
+#' There are 106 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 3122 - 38165 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.panc03.27"
+
+#' Tahoe SNU-1 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe SNU-1 cell line data.
+#' There are 105 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 2393 - 36250 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.snu_1"
+
+#' Tahoe SNU-423 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe SNU-423 cell line data.
+#' There are 108 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 3148 - 39444 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.snu_423"
+
+#' Tahoe SW48 Dataset
+#'
+#' DEGs between drug and control samples in Tahoe SW48 cell line data.
+#' There are 104 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
+#' For each geneset, the `up` set represents the top 100 DEGs
+#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
+#' The length of `up_full` ranges from 2393 - 36402 based on the perturbation.
+#'
+#' @format Nested list of genesets
+#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
+"tahoe.sw48"
