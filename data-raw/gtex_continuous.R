@@ -93,4 +93,8 @@ for(tissue in names(deseq_cont_dfs_all)) {
 }
 saveRDS(gtex_cont_sigs, file.path(PATH, "all_tissue_sigs.rds"))
 gtex.aging <- gtex_cont_sigs
-usethis::use_data(gtex.aging)
+# usethis::use_data(gtex.aging)
+gtex.brain.hippo <- gtex.aging$Brain_Hippocampus
+gtex.blood <- gtex.aging$Whole_Blood
+usethis::use_data(gtex.brain.hippo)
+usethis::use_data(gtex.blood, overwrite=TRUE)
