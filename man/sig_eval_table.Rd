@@ -9,6 +9,9 @@ sig_eval_table(
   pred_sigs,
   true_sigs,
   splits = FALSE,
+  split_file = NULL,
+  split_pb_col = "drug",
+  split_type = NULL,
   source = "source_context",
   target = "target_context",
   BPPARAM = NULL
@@ -22,6 +25,15 @@ sig_eval_table(
 \item{true_sigs}{A named list of genesets containing both the cutoff signature \code{up} and the full signature \code{up_full}.}
 
 \item{splits}{Boolean, indicating whether \code{pred_sigs} is a named list of splits, each split containing a separate list of geneset predictions.}
+
+\item{split_file}{Optional path to a \code{.csv} file containing
+a split table with a perturbation column and split logical columns.}
+
+\item{split_pb_col}{Name of the perturbation column in \code{split_file}. Default is \code{"drug"}.}
+
+\item{split_type}{Optional split subset to evaluate. If \code{"10th"}, evaluates
+perturbations with \code{FALSE} in the relevant split column. If \code{"90th"},
+evaluates perturbations with \code{TRUE} in the relevant split column.}
 
 \item{source}{A character string describing the starting biological context.}
 

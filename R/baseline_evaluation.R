@@ -9,6 +9,12 @@
 #' @param pred_sigs A named list of genesets.
 #' @param true_sigs A named list of genesets containing both the cutoff signature `up` and the full signature `up_full`.
 #' @param splits Boolean, indicating whether `pred_sigs` is a named list of splits, each split containing a separate list of geneset predictions.
+#' @param split_file Optional path to a `.csv` file containing
+#'   a split table with a perturbation column and split logical columns.
+#' @param split_pb_col Name of the perturbation column in `split_file`. Default is `"drug"`.
+#' @param split_type Optional split subset to evaluate. If `"10th"`, evaluates
+#'   perturbations with `FALSE` in the relevant split column. If `"90th"`,
+#'   evaluates perturbations with `TRUE` in the relevant split column.
 #' @param source A character string describing the starting biological context.
 #' @param target A character string describing the target biological context.
 #' @param BPPARAM A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.
@@ -22,6 +28,9 @@ sig_eval_table <- function(source_sigs,
                            pred_sigs,
                            true_sigs,
                            splits = FALSE,
+                           split_file = NULL,
+                           split_pb_col = "drug",
+                           split_type = NULL,
                            source = "source_context",
                            target = "target_context",
                            BPPARAM = NULL) {
@@ -31,12 +40,112 @@ sig_eval_table <- function(source_sigs,
     BPPARAM <- BiocParallel::SerialParam()
   }
 
+  if (!is.null(split_type)) {
+    split_type <- match.arg(split_type, choices = c("10th", "90th"))
+  }
+
+  if (xor(is.null(split_file), is.null(split_type))) {
+    stop("'split_file' and 'split_type' must be supplied together.")
+  }
+
+  if (!is.null(split_file) && !splits) {
+    stop("'split_file', 'split_pb_col', and 'split_type' are only supported when 'splits = TRUE'.")
+  }
+
+  load_split_table <- function(split_file, split_pb_col) {
+    ext <- tolower(tools::file_ext(split_file))
+
+    if (ext != "csv") {
+      stop("'split_file' must end in .csv.")
+    }
+
+    split_tbl <- utils::read.csv(split_file, stringsAsFactors = FALSE, check.names = FALSE)
+
+    if (!is.data.frame(split_tbl)) {
+      stop("Loaded 'split_file' object must be a data.frame or tibble.")
+    }
+    if (!split_pb_col %in% names(split_tbl)) {
+      stop(sprintf("Loaded split table must contain a '%s' column.", split_pb_col))
+    }
+
+    split_tbl
+  }
+
+  empty_eval_df <- function(source, target) {
+    data.frame(
+      source = character(0),
+      target = character(0),
+      displaced = numeric(0),
+      kept = numeric(0),
+      gene = character(0),
+      jacc = numeric(0),
+      ES = numeric(0),
+      NES = numeric(0),
+      pval = numeric(0),
+      padj = numeric(0),
+      log2err = numeric(0),
+      size = numeric(0),
+      leadingEdge = I(list()),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  filter_eval_inputs <- function(source_sigs,
+                                 pred_sigs,
+                                 true_sigs,
+                                 split_tbl = NULL,
+                                 split_col = NULL,
+                                 split_type = NULL) {
+    keep_names <- Reduce(intersect, list(names(source_sigs), names(pred_sigs), names(true_sigs)))
+
+    if (!is.null(split_tbl)) {
+      if (!split_col %in% names(split_tbl)) {
+        stop(sprintf("Split column '%s' not found in split table.", split_col))
+      }
+
+      split_vals <- split_tbl[[split_col]]
+      if (!is.logical(split_vals)) {
+        stop(sprintf("Split column '%s' must be logical.", split_col))
+      }
+
+      split_keep <- if (split_type == "10th") {
+        split_tbl[[split_pb_col]][!split_vals]
+      } else {
+        split_tbl[[split_pb_col]][split_vals]
+      }
+
+      keep_names <- intersect(keep_names, split_keep)
+    }
+
+    list(
+      source_sigs = source_sigs[keep_names],
+      pred_sigs = pred_sigs[keep_names],
+      true_sigs = true_sigs[keep_names]
+    )
+  }
+
+  split_tbl <- if (!is.null(split_file)) load_split_table(split_file, split_pb_col) else NULL
+
+  if (!is.null(split_tbl) && splits) {
+    if (is.null(names(pred_sigs))) {
+      stop("When 'splits = TRUE' and 'split_file' is provided, 'pred_sigs' must be a named list.")
+    }
+
+    split_cols <- setdiff(names(split_tbl), split_pb_col)
+    if (!setequal(split_cols, names(pred_sigs))) {
+      stop("Split columns in 'split_file' must exactly match names(pred_sigs) when 'splits = TRUE'.")
+    }
+  }
+
   sig_eval_helper <- function(source_sigs,
                               pred_sigs,
                               true_sigs,
                               source,
                               target,
                               BPPARAM) {
+    if (length(pred_sigs) == 0) {
+      return(empty_eval_df(source = source, target = target))
+    }
 
     # Separating Top 100 and Full-ranked true signatures
     dest_short_sigs <- lapply(true_sigs, function(x) x$up)
@@ -84,9 +193,29 @@ sig_eval_table <- function(source_sigs,
     for (split in 1:n_splits) {
       message(paste0("Processing Split ", split))
       pred_sigs_split <- pred_sigs[[split]]
-      eval_df <- sig_eval_helper(source_sigs = source_sigs,
-                                 pred_sigs = pred_sigs_split,
-                                 true_sigs = true_sigs,
+      split_col <- NULL
+
+      if (!is.null(split_tbl)) {
+        split_name <- names(pred_sigs)[split]
+        split_col <- if (!is.null(split_name) && split_name %in% names(split_tbl)) {
+          split_name
+        } else {
+          paste0("split_", split)
+        }
+      }
+
+      filtered_inputs <- filter_eval_inputs(
+        source_sigs = source_sigs,
+        pred_sigs = pred_sigs_split,
+        true_sigs = true_sigs,
+        split_tbl = split_tbl,
+        split_col = split_col,
+        split_type = split_type
+      )
+
+      eval_df <- sig_eval_helper(source_sigs = filtered_inputs$source_sigs,
+                                 pred_sigs = filtered_inputs$pred_sigs,
+                                 true_sigs = filtered_inputs$true_sigs,
                                  source = source,
                                  target = target,
                                  BPPARAM = BPPARAM
@@ -96,9 +225,14 @@ sig_eval_table <- function(source_sigs,
     }
     eval_df <- dplyr::bind_rows(eval_dfs)
   } else {
-    eval_df <- sig_eval_helper(source_sigs = source_sigs,
-                               pred_sigs = pred_sigs,
-                               true_sigs = true_sigs,
+    filtered_inputs <- filter_eval_inputs(
+      source_sigs = source_sigs,
+      pred_sigs = pred_sigs,
+      true_sigs = true_sigs
+    )
+    eval_df <- sig_eval_helper(source_sigs = filtered_inputs$source_sigs,
+                               pred_sigs = filtered_inputs$pred_sigs,
+                               true_sigs = filtered_inputs$true_sigs,
                                source = source,
                                target = target,
                                BPPARAM = BPPARAM
