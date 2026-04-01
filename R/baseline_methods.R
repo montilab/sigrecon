@@ -7,13 +7,13 @@
 #' @param se A SummarizedExperiment object containing gene expression data.
 #' @param sigs A list of gene signatures, where each element is a character vector of gene names.
 #' @param score Scoring method used to score samples against input signatures.
-#'   Either `"gsva"` or `"AUCell"`. Default is `"gsva"`.
+#'   Either `"gsva"`, `"AUCell"`, or `"eigen"`. Default is `"gsva"`.
 #'
 #' @return A list of reconstructed gene signatures, with the same structure as the input `sigs`.
 #'
 #' @details
 #' The function performs the following steps:
-#' 1. Calculates projection scores for the input signatures with either GSVA or AUCell.
+#' 1. Calculates projection scores for the input signatures with GSVA, AUCell, or eigengenes.
 #' 2. Computes the correlation between gene expression and projection scores.
 #' 3. Ranks genes based on their correlation with each signature's projection scores.
 #' 4. Selects the top-ranking genes to form new signatures of the same length as the original ones.
@@ -27,7 +27,7 @@
 #' @export
 projectCor <- function(se,
                        sigs,
-                       score = c("gsva", "AUCell")) {
+                       score = c("gsva", "AUCell", "eigen")) {
   score <- match.arg(score)
   stopifnot(is(se, "SummarizedExperiment"))
 
@@ -41,7 +41,7 @@ projectCor <- function(se,
     } else {
       score_mat <- score_res
     }
-  } else {
+  } else if (score == "AUCell") {
     if (is(expr_mat, "sparseMatrix")) {
       expr_mat <- as.matrix(expr_mat)
     }
@@ -53,6 +53,53 @@ projectCor <- function(se,
                                   rankings = rankings,
                                   verbose = FALSE)
     score_mat <- AUCell::getAUC(auc)
+  } else {
+    if (is(expr_mat, "sparseMatrix")) {
+      expr_mat <- as.matrix(expr_mat)
+    }
+
+    gene_names <- rownames(expr_mat)
+    if (is.null(gene_names)) {
+      stop("Expression assay must have rownames to compute eigengene scores.")
+    }
+
+    eig_scores <- lapply(names(sigs), function(sig_name) {
+      genes <- intersect(sigs[[sig_name]], gene_names)
+      if (length(genes) == 0) {
+        stop(sprintf("No genes from signature '%s' found in the expression assay.", sig_name))
+      }
+
+      sig_expr <- expr_mat[genes, , drop = FALSE]
+      gene_sds <- apply(sig_expr, 1, stats::sd)
+      keep <- !is.na(gene_sds) & gene_sds > 0
+      sig_expr <- sig_expr[keep, , drop = FALSE]
+
+      if (nrow(sig_expr) == 0) {
+        stop(sprintf("All genes in signature '%s' have zero variance.", sig_name))
+      }
+
+      sig_expr <- t(scale(t(sig_expr), center = TRUE, scale = TRUE))
+
+      eigengene <- if (nrow(sig_expr) == 1) {
+        as.numeric(sig_expr[1, ])
+      } else {
+        pca <- stats::prcomp(t(sig_expr), center = FALSE, scale. = FALSE)
+        as.numeric(pca$x[, 1])
+      }
+
+      # Align the PC direction with the average standardized module signal.
+      avg_signal <- colMeans(sig_expr)
+      align_cor <- stats::cor(eigengene, avg_signal)
+      if (!is.na(align_cor) && align_cor < 0) {
+        eigengene <- -eigengene
+      }
+
+      eigengene
+    })
+
+    score_mat <- do.call(rbind, eig_scores)
+    rownames(score_mat) <- names(sigs)
+    colnames(score_mat) <- colnames(expr_mat)
   }
 
   genes_data <- t(expr_mat)

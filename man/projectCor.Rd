@@ -4,7 +4,7 @@
 \alias{projectCor}
 \title{Reconstruct Gene Signatures Using Projection Scores}
 \usage{
-projectCor(se, sigs, score = c("gsva", "AUCell"))
+projectCor(se, sigs, score = c("gsva", "AUCell", "eigen"))
 }
 \arguments{
 \item{se}{A SummarizedExperiment object containing gene expression data.}
@@ -12,7 +12,7 @@ projectCor(se, sigs, score = c("gsva", "AUCell"))
 \item{sigs}{A list of gene signatures, where each element is a character vector of gene names.}
 
 \item{score}{Scoring method used to score samples against input signatures.
-Either \code{"gsva"} or \code{"AUCell"}. Default is \code{"gsva"}.}
+Either \code{"gsva"}, \code{"AUCell"}, or \code{"eigen"}. Default is \code{"gsva"}.}
 }
 \value{
 A list of reconstructed gene signatures, with the same structure as the input \code{sigs}.
@@ -24,7 +24,7 @@ per-sample projection scores computed from the input signatures.
 \details{
 The function performs the following steps:
 \enumerate{
-\item Calculates projection scores for the input signatures with either GSVA or AUCell.
+\item Calculates projection scores for the input signatures with GSVA, AUCell, or eigengenes.
 \item Computes the correlation between gene expression and projection scores.
 \item Ranks genes based on their correlation with each signature's projection scores.
 \item Selects the top-ranking genes to form new signatures of the same length as the original ones.
