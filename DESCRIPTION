@@ -33,6 +33,7 @@ Imports:
     tibble,
     Matrix,
     MDMR,
+    glmnet,
     SILGGM,
     Seurat,
     parallel,

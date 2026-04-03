@@ -359,6 +359,103 @@ mdmr_eval <- function(signature,
   return(mdmr_output)
 }
 
+#' Compute Lasso Benchmark R-squared for a Gene Set
+#'
+#' @description
+#' Fits a lasso regression model predicting a binary perturbation indicator from
+#' the expression of genes in a supplied geneset, then returns the in-sample
+#' R-squared of that fitted model.
+#'
+#' @param se A SummarizedExperiment object containing expression data and sample metadata.
+#' @param geneset A character vector of gene IDs.
+#' @param pb_col A character string specifying the column in `colData(se)` that
+#'   encodes perturbation status.
+#'
+#' @return A numeric R-squared value, or `NA_real_` if the model cannot be fit.
+#'
+#' @importFrom SummarizedExperiment assay colData
+#' @importFrom glmnet cv.glmnet
+#' @export
+lasso_benchmark_r2 <- function(se, geneset, pb_col) {
+  stopifnot(is(se, "SummarizedExperiment"))
+
+  if (!pb_col %in% colnames(SummarizedExperiment::colData(se))) {
+    stop(sprintf("Column '%s' not found in colData(se).", pb_col))
+  }
+
+  expr_mat <- SummarizedExperiment::assay(se)
+  gene_names <- rownames(expr_mat)
+
+  if (is.null(gene_names)) {
+    stop("Expression assay must have rownames.")
+  }
+
+  valid_genes <- intersect(geneset, gene_names)
+  if (length(valid_genes) == 0) {
+    return(NA_real_)
+  }
+
+  x <- t(expr_mat[valid_genes, , drop = FALSE])
+  if (is(x, "sparseMatrix")) {
+    x <- as.matrix(x)
+  }
+
+  y_raw <- SummarizedExperiment::colData(se)[[pb_col]]
+  if (is.logical(y_raw)) {
+    y <- as.numeric(y_raw)
+  } else if (is.numeric(y_raw) || is.integer(y_raw)) {
+    if (!all(stats::na.omit(y_raw) %in% c(0, 1))) {
+      stop(sprintf("Column '%s' must be binary if numeric.", pb_col))
+    }
+    y <- as.numeric(y_raw)
+  } else if (is.factor(y_raw)) {
+    if (nlevels(y_raw) != 2) {
+      stop(sprintf("Column '%s' must have exactly 2 levels.", pb_col))
+    }
+    y <- as.numeric(y_raw) - 1
+  } else {
+    stop(sprintf("Column '%s' must be logical, binary numeric, or a 2-level factor.", pb_col))
+  }
+
+  keep_samples <- !is.na(y)
+  x <- x[keep_samples, , drop = FALSE]
+  y <- y[keep_samples]
+
+  if (length(unique(y)) < 2 || nrow(x) < 2) {
+    return(NA_real_)
+  }
+
+  if (ncol(x) == 0) {
+    return(NA_real_)
+  }
+
+  gene_sd <- apply(x, 2, stats::sd)
+  keep_genes <- !is.na(gene_sd) & gene_sd > 0
+  x <- x[, keep_genes, drop = FALSE]
+
+  if (ncol(x) == 0) {
+    return(NA_real_)
+  }
+
+  cv_fit <- glmnet::cv.glmnet(
+    x = x,
+    y = y,
+    alpha = 1,
+    family = "gaussian",
+    standardize = TRUE
+  )
+
+  preds <- as.numeric(stats::predict(cv_fit, newx = x, s = "lambda.min"))
+  ss_tot <- sum((y - mean(y))^2)
+
+  if (ss_tot == 0) {
+    return(NA_real_)
+  }
+
+  ss_res <- sum((y - preds)^2)
+  1 - (ss_res / ss_tot)
+}
+
 #' Create appropriate BiocParallel backend
 #'
 #' @param workers Number of parallel workers (default: 1 for sequential)
