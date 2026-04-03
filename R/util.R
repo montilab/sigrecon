@@ -359,10 +359,10 @@ mdmr_eval <- function(signature,
   return(mdmr_output)
 }
 
-#' Compute Lasso Benchmark R-squared for a Gene Set
+#' Compute Ridge Benchmark R-squared for a Gene Set
 #'
 #' @description
-#' Fits a lasso regression model predicting a binary perturbation indicator from
+#' Fits a ridge regression model predicting a binary perturbation indicator from
 #' the expression of genes in a supplied geneset, then returns the in-sample
 #' R-squared of that fitted model.
 #'
@@ -376,7 +376,7 @@ mdmr_eval <- function(signature,
 #' @importFrom SummarizedExperiment assay colData
 #' @importFrom glmnet cv.glmnet
 #' @export
-lasso_benchmark_r2 <- function(se, geneset, pb_col) {
+ridge_benchmark_r2 <- function(se, geneset, pb_col) {
   stopifnot(is(se, "SummarizedExperiment"))
 
   if (!pb_col %in% colnames(SummarizedExperiment::colData(se))) {
@@ -440,7 +440,7 @@ lasso_benchmark_r2 <- function(se, geneset, pb_col) {
   cv_fit <- glmnet::cv.glmnet(
     x = x,
     y = y,
-    alpha = 1,
+    alpha = 0,
     family = "gaussian",
     standardize = TRUE
   )

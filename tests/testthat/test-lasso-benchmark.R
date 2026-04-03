@@ -1,4 +1,4 @@
-test_that("lasso_benchmark_r2 fits a lasso model on a geneset", {
+test_that("ridge_benchmark_r2 fits a ridge model on a geneset", {
   skip_if_not_installed("glmnet")
 
   mat <- matrix(c(
@@ -16,13 +16,13 @@ test_that("lasso_benchmark_r2 fits a lasso model on a geneset", {
     colData = data.frame(perturbed = c(FALSE, FALSE, TRUE, TRUE))
   )
 
-  r2 <- lasso_benchmark_r2(se = se, geneset = c("g1", "g2"), pb_col = "perturbed")
+  r2 <- ridge_benchmark_r2(se = se, geneset = c("g1", "g2"), pb_col = "perturbed")
 
   expect_true(is.finite(r2))
   expect_gte(r2, 0)
 })
 
-test_that("sig_eval_table includes lasso benchmark columns when requested", {
+test_that("sig_eval_table includes ridge benchmark columns when requested", {
   skip_if_not_installed("glmnet")
 
   mat <- matrix(c(
@@ -49,7 +49,7 @@ test_that("sig_eval_table includes lasso benchmark columns when requested", {
     pred_sigs = pred_sigs,
     true_sigs = true_sigs,
     se = se,
-    lasso_benchmark = TRUE,
+    ridge_benchmark = TRUE,
     pb_col = "perturbed",
     BPPARAM = BiocParallel::SerialParam()
   )

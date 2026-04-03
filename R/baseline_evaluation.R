@@ -15,11 +15,11 @@
 #' @param split_type Optional split subset to evaluate. If `"10th"`, evaluates
 #'   perturbations with `FALSE` in the relevant split column. If `"90th"`,
 #'   evaluates perturbations with `TRUE` in the relevant split column.
-#' @param se Optional SummarizedExperiment object used for lasso benchmarking.
-#' @param lasso_benchmark Logical, indicating whether to compute lasso benchmark
+#' @param se Optional SummarizedExperiment object used for ridge benchmarking.
+#' @param ridge_benchmark Logical, indicating whether to compute ridge benchmark
 #'   R-squared values for the source, predicted, and true signatures.
 #' @param pb_col Column in `colData(se)` encoding perturbed/not-perturbed status
-#'   for lasso benchmarking.
+#'   for ridge benchmarking.
 #' @param source A character string describing the starting biological context.
 #' @param target A character string describing the target biological context.
 #' @param BPPARAM A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.
@@ -37,7 +37,7 @@ sig_eval_table <- function(source_sigs,
                            split_pb_col = "drug",
                            split_type = NULL,
                            se = NULL,
-                           lasso_benchmark = FALSE,
+                           ridge_benchmark = FALSE,
                            pb_col = NULL,
                            source = "source_context",
                            target = "target_context",
@@ -60,12 +60,12 @@ sig_eval_table <- function(source_sigs,
     stop("'split_file', 'split_pb_col', and 'split_type' are only supported when 'splits = TRUE'.")
   }
 
-  if (lasso_benchmark) {
+  if (ridge_benchmark) {
     if (is.null(se) || is.null(pb_col)) {
-      stop("'se' and 'pb_col' must be supplied when 'lasso_benchmark = TRUE'.")
+      stop("'se' and 'pb_col' must be supplied when 'ridge_benchmark = TRUE'.")
     }
     if (!is(se, "SummarizedExperiment")) {
-      stop("'se' must be a SummarizedExperiment when 'lasso_benchmark = TRUE'.")
+      stop("'se' must be a SummarizedExperiment when 'ridge_benchmark = TRUE'.")
     }
   }
 
@@ -88,7 +88,7 @@ sig_eval_table <- function(source_sigs,
     split_tbl
   }
 
-  empty_eval_df <- function(source, target, lasso_benchmark = FALSE) {
+  empty_eval_df <- function(source, target, ridge_benchmark = FALSE) {
     eval_df <- data.frame(
       source = character(0),
       target = character(0),
@@ -106,7 +106,7 @@ sig_eval_table <- function(source_sigs,
       stringsAsFactors = FALSE
     )
 
-    if (lasso_benchmark) {
+    if (ridge_benchmark) {
       eval_df$source_r2 <- numeric(0)
       eval_df$pred_r2 <- numeric(0)
       eval_df$true_r2 <- numeric(0)
@@ -169,10 +169,10 @@ sig_eval_table <- function(source_sigs,
                               target,
                               BPPARAM,
                               se = NULL,
-                              lasso_benchmark = FALSE,
+                              ridge_benchmark = FALSE,
                               pb_col = NULL) {
     if (length(pred_sigs) == 0) {
-      return(empty_eval_df(source = source, target = target, lasso_benchmark = lasso_benchmark))
+      return(empty_eval_df(source = source, target = target, ridge_benchmark = ridge_benchmark))
     }
 
     # Separating Top 100 and Full-ranked true signatures
@@ -212,9 +212,9 @@ sig_eval_table <- function(source_sigs,
       stringsAsFactors = FALSE
     )
 
-    if (lasso_benchmark) {
+    if (ridge_benchmark) {
       benchmark_fn <- function(geneset) {
-        lasso_benchmark_r2(se = se, geneset = geneset, pb_col = pb_col)
+        ridge_benchmark_r2(se = se, geneset = geneset, pb_col = pb_col)
       }
       eval_df$source_r2 <- vapply(source_sigs, benchmark_fn, numeric(1))
       eval_df$pred_r2 <- vapply(pred_sigs, benchmark_fn, numeric(1))
@@ -257,7 +257,7 @@ sig_eval_table <- function(source_sigs,
                                  target = target,
                                  BPPARAM = BPPARAM,
                                  se = se,
-                                 lasso_benchmark = lasso_benchmark,
+                                 ridge_benchmark = ridge_benchmark,
                                  pb_col = pb_col
                                  )
       eval_df$split <- split
@@ -277,7 +277,7 @@ sig_eval_table <- function(source_sigs,
                                target = target,
                                BPPARAM = BPPARAM,
                                se = se,
-                               lasso_benchmark = lasso_benchmark,
+                               ridge_benchmark = ridge_benchmark,
                                pb_col = pb_col
                                )
   }
