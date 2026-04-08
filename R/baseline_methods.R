@@ -398,6 +398,11 @@ network_sig <- function(ig,
                         limit = 30) {
   stopifnot(is(seeds, "character") | is(seeds, "list"))
   stopifnot(is(ig, "igraph"))
+  sig <- match.arg(sig)
+
+  if (is.character(seeds) && length(seeds) == 1) {
+    seeds <- setNames(list(seeds), seeds)
+  }
 
   gene_names <- igraph::V(ig)$name
   all_genes <- unname(unlist(seeds))
@@ -405,6 +410,24 @@ network_sig <- function(ig,
   if (!seed_genes_filter) {
     message("Filtering Seed Genes to those contained in the graph.")
     seeds <- lapply(seeds, function(x) x[x %in% gene_names])
+  }
+
+  if (is.list(seeds)) {
+    empty_sigs <- names(seeds)[lengths(seeds) == 0]
+    if (length(empty_sigs) > 0) {
+      for (sig_name in empty_sigs) {
+        message(sprintf(
+          "Skipping signature '%s' because its genes were not found in the igraph network.",
+          sig_name
+        ))
+      }
+      seeds <- seeds[lengths(seeds) > 0]
+    }
+  }
+
+  if (length(seeds) == 0) {
+    message("No signatures remained after filtering to genes present in the igraph network.")
+    return(list())
   }
 
   if (sig == "corr") {

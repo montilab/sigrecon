@@ -137,3 +137,18 @@ test_that("Bootstrap signature extraction works with sparse bootstrap matrices",
   expect_equal(sort(sigs$sig_small), c("g1", "g3"))
   expect_equal(sort(sigs$sig_large), c("g2", "g3"))
 })
+
+test_that("network_sig skips signatures with no genes in the graph", {
+  test_mat <- matrix(c(0,1,0,1,0,1,0,1,0), nrow=3, ncol=3, byrow=TRUE)
+  test_ig <- graph_from_adjacency_matrix(test_mat, mode="undirected")
+  igraph::V(test_ig)$name <- c("g1", "g2", "g3")
+
+  seeds <- list(keep = c("g1", "g2"), drop = c("missing_gene"))
+
+  expect_message(
+    result <- network_sig(test_ig, seeds, sig = "corr", limit = 2),
+    "Skipping signature 'drop' because its genes were not found in the igraph network."
+  )
+
+  expect_identical(names(result), "keep")
+})
