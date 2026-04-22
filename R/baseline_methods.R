@@ -63,10 +63,15 @@ projectCor <- function(se,
       stop("Expression assay must have rownames to compute eigengene scores.")
     }
 
-    eig_scores <- lapply(names(sigs), function(sig_name) {
+    sig_names <- names(sigs)
+    eig_scores <- setNames(lapply(sig_names, function(sig_name) {
       genes <- intersect(sigs[[sig_name]], gene_names)
       if (length(genes) == 0) {
-        stop(sprintf("No genes from signature '%s' found in the expression assay.", sig_name))
+        message(sprintf(
+          "Skipping signature '%s' because no genes were found in the expression assay.",
+          sig_name
+        ))
+        return(NULL)
       }
 
       sig_expr <- expr_mat[genes, , drop = FALSE]
@@ -95,10 +100,17 @@ projectCor <- function(se,
       }
 
       eigengene
-    })
+    }), sig_names)
+
+    keep_scores <- !vapply(eig_scores, is.null, logical(1))
+    eig_scores <- eig_scores[keep_scores]
+
+    if (length(eig_scores) == 0) {
+      stop("No signatures had genes present in the expression assay for eigengene scoring.")
+    }
 
     score_mat <- do.call(rbind, eig_scores)
-    rownames(score_mat) <- names(sigs)
+    rownames(score_mat) <- names(eig_scores)
     colnames(score_mat) <- colnames(expr_mat)
   }
 
@@ -113,8 +125,15 @@ projectCor <- function(se,
 
   proj_scores <- t(score_mat)
   corr_mat <- stats::cor(genes_data, proj_scores, method = "pearson")
+  if (is.null(dim(corr_mat))) {
+    corr_mat <- matrix(
+      corr_mat,
+      ncol = 1,
+      dimnames = list(colnames(genes_data), colnames(proj_scores))
+    )
+  }
 
-  results <- as_tibble(corr_mat, rownames="gene")
+  results <- tibble::as_tibble(corr_mat, rownames = "gene")
   new_sigs <- list()
   for(sig_name in colnames(proj_scores)) {
     # Obtain rank of genes most correlated to the projection scores
