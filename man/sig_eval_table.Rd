@@ -15,6 +15,7 @@ sig_eval_table(
   se = NULL,
   ridge_benchmark = FALSE,
   pb_col = NULL,
+  control_value = NULL,
   source = "source_context",
   target = "target_context",
   BPPARAM = NULL
@@ -43,8 +44,11 @@ evaluates perturbations with \code{TRUE} in the relevant split column.}
 \item{ridge_benchmark}{Logical, indicating whether to compute ridge benchmark
 R-squared values for the source, predicted, and true signatures.}
 
-\item{pb_col}{Column in \code{colData(se)} encoding perturbed/not-perturbed status
+\item{pb_col}{Column in \code{colData(se)} containing perturbation labels
 for ridge benchmarking.}
+
+\item{control_value}{Label in \code{pb_col} indicating control samples
+(e.g. \code{"DMSO"} or \code{"non-targeting"}).}
 
 \item{source}{A character string describing the starting biological context.}
 

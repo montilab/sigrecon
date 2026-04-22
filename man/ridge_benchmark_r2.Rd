@@ -4,7 +4,7 @@
 \alias{ridge_benchmark_r2}
 \title{Compute Ridge Benchmark R-squared for a Gene Set}
 \usage{
-ridge_benchmark_r2(se, geneset, pb_col)
+ridge_benchmark_r2(se, geneset, pb_col, perturbation, control_value)
 }
 \arguments{
 \item{se}{A SummarizedExperiment object containing expression data and sample metadata.}
@@ -12,7 +12,12 @@ ridge_benchmark_r2(se, geneset, pb_col)
 \item{geneset}{A character vector of gene IDs.}
 
 \item{pb_col}{A character string specifying the column in \code{colData(se)} that
-encodes perturbation status.}
+stores perturbation labels.}
+
+\item{perturbation}{A character string specifying the perturbation label to benchmark.}
+
+\item{control_value}{A character string specifying the control label
+(e.g. \code{"DMSO"} or \code{"non-targeting"}).}
 }
 \value{
 A numeric R-squared value, or \code{NA_real_} if the model cannot be fit.

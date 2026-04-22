@@ -18,8 +18,10 @@
 #' @param se Optional SummarizedExperiment object used for ridge benchmarking.
 #' @param ridge_benchmark Logical, indicating whether to compute ridge benchmark
 #'   R-squared values for the source, predicted, and true signatures.
-#' @param pb_col Column in `colData(se)` encoding perturbed/not-perturbed status
+#' @param pb_col Column in `colData(se)` containing perturbation labels
 #'   for ridge benchmarking.
+#' @param control_value Label in `pb_col` indicating control samples
+#'   (e.g. `"DMSO"` or `"non-targeting"`).
 #' @param source A character string describing the starting biological context.
 #' @param target A character string describing the target biological context.
 #' @param BPPARAM A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.
@@ -39,6 +41,7 @@ sig_eval_table <- function(source_sigs,
                            se = NULL,
                            ridge_benchmark = FALSE,
                            pb_col = NULL,
+                           control_value = NULL,
                            source = "source_context",
                            target = "target_context",
                            BPPARAM = NULL) {
@@ -61,8 +64,8 @@ sig_eval_table <- function(source_sigs,
   }
 
   if (ridge_benchmark) {
-    if (is.null(se) || is.null(pb_col)) {
-      stop("'se' and 'pb_col' must be supplied when 'ridge_benchmark = TRUE'.")
+    if (is.null(se) || is.null(pb_col) || is.null(control_value)) {
+      stop("'se', 'pb_col', and 'control_value' must be supplied when 'ridge_benchmark = TRUE'.")
     }
     if (!is(se, "SummarizedExperiment")) {
       stop("'se' must be a SummarizedExperiment when 'ridge_benchmark = TRUE'.")
@@ -170,7 +173,8 @@ sig_eval_table <- function(source_sigs,
                               BPPARAM,
                               se = NULL,
                               ridge_benchmark = FALSE,
-                              pb_col = NULL) {
+                              pb_col = NULL,
+                              control_value = NULL) {
     if (length(pred_sigs) == 0) {
       return(empty_eval_df(source = source, target = target, ridge_benchmark = ridge_benchmark))
     }
@@ -213,12 +217,20 @@ sig_eval_table <- function(source_sigs,
     )
 
     if (ridge_benchmark) {
-      benchmark_fn <- function(geneset) {
-        ridge_benchmark_r2(se = se, geneset = geneset, pb_col = pb_col)
+      benchmark_fn <- function(geneset_list) {
+        vapply(names(geneset_list), function(pb_name) {
+          ridge_benchmark_r2(
+            se = se,
+            geneset = geneset_list[[pb_name]],
+            pb_col = pb_col,
+            perturbation = pb_name,
+            control_value = control_value
+          )
+        }, numeric(1))
       }
-      eval_df$source_r2 <- vapply(source_sigs, benchmark_fn, numeric(1))
-      eval_df$pred_r2 <- vapply(pred_sigs, benchmark_fn, numeric(1))
-      eval_df$true_r2 <- vapply(dest_short_sigs, benchmark_fn, numeric(1))
+      eval_df$source_r2 <- benchmark_fn(source_sigs)
+      eval_df$pred_r2 <- benchmark_fn(pred_sigs)
+      eval_df$true_r2 <- benchmark_fn(dest_short_sigs)
     }
 
     return(eval_df)
@@ -258,7 +270,8 @@ sig_eval_table <- function(source_sigs,
                                  BPPARAM = BPPARAM,
                                  se = se,
                                  ridge_benchmark = ridge_benchmark,
-                                 pb_col = pb_col
+                                 pb_col = pb_col,
+                                 control_value = control_value
                                  )
       eval_df$split <- split
       eval_dfs[[split]] <- eval_df
@@ -278,7 +291,8 @@ sig_eval_table <- function(source_sigs,
                                BPPARAM = BPPARAM,
                                se = se,
                                ridge_benchmark = ridge_benchmark,
-                               pb_col = pb_col
+                               pb_col = pb_col,
+                               control_value = control_value
                                )
   }
 

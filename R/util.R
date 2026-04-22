@@ -369,21 +369,38 @@ mdmr_eval <- function(signature,
 #' @param se A SummarizedExperiment object containing expression data and sample metadata.
 #' @param geneset A character vector of gene IDs.
 #' @param pb_col A character string specifying the column in `colData(se)` that
-#'   encodes perturbation status.
+#'   stores perturbation labels.
+#' @param perturbation A character string specifying the perturbation label to benchmark.
+#' @param control_value A character string specifying the control label
+#'   (e.g. `"DMSO"` or `"non-targeting"`).
 #'
 #' @return A numeric R-squared value, or `NA_real_` if the model cannot be fit.
 #'
 #' @importFrom SummarizedExperiment assay colData
 #' @importFrom glmnet cv.glmnet
 #' @export
-ridge_benchmark_r2 <- function(se, geneset, pb_col) {
+ridge_benchmark_r2 <- function(se, geneset, pb_col, perturbation, control_value) {
   stopifnot(is(se, "SummarizedExperiment"))
 
   if (!pb_col %in% colnames(SummarizedExperiment::colData(se))) {
     stop(sprintf("Column '%s' not found in colData(se).", pb_col))
   }
 
-  expr_mat <- SummarizedExperiment::assay(se)
+  pb_vals <- SummarizedExperiment::colData(se)[[pb_col]]
+  pb_vals <- as.character(pb_vals)
+  perturbation <- as.character(perturbation)
+  control_value <- as.character(control_value)
+
+  keep_samples <- !is.na(pb_vals) & pb_vals %in% c(perturbation, control_value)
+  if (sum(keep_samples) < 2) {
+    return(NA_real_)
+  }
+
+  se_subset <- se[, keep_samples, drop = FALSE]
+  subset_pb_vals <- as.character(SummarizedExperiment::colData(se_subset)[[pb_col]])
+  benchmark_response <- as.numeric(subset_pb_vals == perturbation)
+
+  expr_mat <- SummarizedExperiment::assay(se_subset)
   gene_names <- rownames(expr_mat)
 
   if (is.null(gene_names)) {
@@ -400,26 +417,7 @@ ridge_benchmark_r2 <- function(se, geneset, pb_col) {
     x <- as.matrix(x)
   }
 
-  y_raw <- SummarizedExperiment::colData(se)[[pb_col]]
-  if (is.logical(y_raw)) {
-    y <- as.numeric(y_raw)
-  } else if (is.numeric(y_raw) || is.integer(y_raw)) {
-    if (!all(stats::na.omit(y_raw) %in% c(0, 1))) {
-      stop(sprintf("Column '%s' must be binary if numeric.", pb_col))
-    }
-    y <- as.numeric(y_raw)
-  } else if (is.factor(y_raw)) {
-    if (nlevels(y_raw) != 2) {
-      stop(sprintf("Column '%s' must have exactly 2 levels.", pb_col))
-    }
-    y <- as.numeric(y_raw) - 1
-  } else {
-    stop(sprintf("Column '%s' must be logical, binary numeric, or a 2-level factor.", pb_col))
-  }
-
-  keep_samples <- !is.na(y)
-  x <- x[keep_samples, , drop = FALSE]
-  y <- y[keep_samples]
+  y <- benchmark_response
 
   if (length(unique(y)) < 2 || nrow(x) < 2) {
     return(NA_real_)

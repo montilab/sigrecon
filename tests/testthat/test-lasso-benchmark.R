@@ -13,10 +13,16 @@ test_that("ridge_benchmark_r2 fits a ridge model on a geneset", {
 
   se <- SummarizedExperiment::SummarizedExperiment(
     assays = list(counts = mat),
-    colData = data.frame(perturbed = c(FALSE, FALSE, TRUE, TRUE))
+    colData = data.frame(drug = c("DMSO", "DMSO", "drugA", "drugA"))
   )
 
-  r2 <- ridge_benchmark_r2(se = se, geneset = c("g1", "g2"), pb_col = "perturbed")
+  r2 <- ridge_benchmark_r2(
+    se = se,
+    geneset = c("g1", "g2"),
+    pb_col = "drug",
+    perturbation = "drugA",
+    control_value = "DMSO"
+  )
 
   expect_true(is.finite(r2))
   expect_gte(r2, 0)
@@ -37,7 +43,7 @@ test_that("sig_eval_table includes ridge benchmark columns when requested", {
 
   se <- SummarizedExperiment::SummarizedExperiment(
     assays = list(counts = mat),
-    colData = data.frame(perturbed = c(FALSE, FALSE, TRUE, TRUE))
+    colData = data.frame(drug = c("DMSO", "DMSO", "drugA", "drugA"))
   )
 
   source_sigs <- list(drugA = c("g1", "g2"))
@@ -50,7 +56,8 @@ test_that("sig_eval_table includes ridge benchmark columns when requested", {
     true_sigs = true_sigs,
     se = se,
     ridge_benchmark = TRUE,
-    pb_col = "perturbed",
+    pb_col = "drug",
+    control_value = "DMSO",
     BPPARAM = BiocParallel::SerialParam()
   )
 
