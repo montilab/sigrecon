@@ -28,7 +28,7 @@ sig_eval_table(
 
 \item{true_sigs}{A named list of genesets containing both the cutoff signature \code{up} and the full signature \code{up_full}.}
 
-\item{splits}{Boolean, indicating whether \code{pred_sigs} is a named list of splits, each split containing a separate list of geneset predictions.}
+\item{splits}{Boolean, indicating whether \code{pred_sigs} is a named list of splits, each split containing a separate list of geneset predictions. When \code{split_file} is supplied, split names in \code{pred_sigs} must be present as columns in the split table.}
 
 \item{split_file}{Optional path to a \code{.csv} file containing
 a split table with a perturbation column and split logical columns.}

@@ -8,7 +8,7 @@
 #' @param source_sigs A named list of genesets.
 #' @param pred_sigs A named list of genesets.
 #' @param true_sigs A named list of genesets containing both the cutoff signature `up` and the full signature `up_full`.
-#' @param splits Boolean, indicating whether `pred_sigs` is a named list of splits, each split containing a separate list of geneset predictions.
+#' @param splits Boolean, indicating whether `pred_sigs` is a named list of splits, each split containing a separate list of geneset predictions. When `split_file` is supplied, split names in `pred_sigs` must be present as columns in the split table.
 #' @param split_file Optional path to a `.csv` file containing
 #'   a split table with a perturbation column and split logical columns.
 #' @param split_pb_col Name of the perturbation column in `split_file`. Default is `"drug"`.
@@ -31,21 +31,22 @@
 #' @importFrom fgsea fgseaMultilevel
 #' @importFrom BiocParallel bplapply SerialParam MulticoreParam SnowParam
 #' @export
-sig_eval_table <- function(source_sigs,
-                           pred_sigs,
-                           true_sigs,
-                           splits = FALSE,
-                           split_file = NULL,
-                           split_pb_col = "drug",
-                           split_type = NULL,
-                           se = NULL,
-                           ridge_benchmark = FALSE,
-                           pb_col = NULL,
-                           control_value = NULL,
-                           source = "source_context",
-                           target = "target_context",
-                           BPPARAM = NULL) {
-
+sig_eval_table <- function(
+  source_sigs,
+  pred_sigs,
+  true_sigs,
+  splits = FALSE,
+  split_file = NULL,
+  split_pb_col = "drug",
+  split_type = NULL,
+  se = NULL,
+  ridge_benchmark = FALSE,
+  pb_col = NULL,
+  control_value = NULL,
+  source = "source_context",
+  target = "target_context",
+  BPPARAM = NULL
+) {
   # Set default BPPARAM if not provided
   if (is.null(BPPARAM)) {
     BPPARAM <- BiocParallel::SerialParam()
@@ -60,12 +61,16 @@ sig_eval_table <- function(source_sigs,
   }
 
   if (!is.null(split_file) && !splits) {
-    stop("'split_file', 'split_pb_col', and 'split_type' are only supported when 'splits = TRUE'.")
+    stop(
+      "'split_file', 'split_pb_col', and 'split_type' are only supported when 'splits = TRUE'."
+    )
   }
 
   if (ridge_benchmark) {
     if (is.null(se) || is.null(pb_col) || is.null(control_value)) {
-      stop("'se', 'pb_col', and 'control_value' must be supplied when 'ridge_benchmark = TRUE'.")
+      stop(
+        "'se', 'pb_col', and 'control_value' must be supplied when 'ridge_benchmark = TRUE'."
+      )
     }
     if (!is(se, "SummarizedExperiment")) {
       stop("'se' must be a SummarizedExperiment when 'ridge_benchmark = TRUE'.")
@@ -79,13 +84,20 @@ sig_eval_table <- function(source_sigs,
       stop("'split_file' must end in .csv.")
     }
 
-    split_tbl <- utils::read.csv(split_file, stringsAsFactors = FALSE, check.names = FALSE)
+    split_tbl <- utils::read.csv(
+      split_file,
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
 
     if (!is.data.frame(split_tbl)) {
       stop("Loaded 'split_file' object must be a data.frame or tibble.")
     }
     if (!split_pb_col %in% names(split_tbl)) {
-      stop(sprintf("Loaded split table must contain a '%s' column.", split_pb_col))
+      stop(sprintf(
+        "Loaded split table must contain a '%s' column.",
+        split_pb_col
+      ))
     }
 
     split_tbl
@@ -118,13 +130,18 @@ sig_eval_table <- function(source_sigs,
     eval_df
   }
 
-  filter_eval_inputs <- function(source_sigs,
-                                 pred_sigs,
-                                 true_sigs,
-                                 split_tbl = NULL,
-                                 split_col = NULL,
-                                 split_type = NULL) {
-    keep_names <- Reduce(intersect, list(names(source_sigs), names(pred_sigs), names(true_sigs)))
+  filter_eval_inputs <- function(
+    source_sigs,
+    pred_sigs,
+    true_sigs,
+    split_tbl = NULL,
+    split_col = NULL,
+    split_type = NULL
+  ) {
+    keep_names <- Reduce(
+      intersect,
+      list(names(source_sigs), names(pred_sigs), names(true_sigs))
+    )
 
     if (!is.null(split_tbl)) {
       if (!split_col %in% names(split_tbl)) {
@@ -152,31 +169,47 @@ sig_eval_table <- function(source_sigs,
     )
   }
 
-  split_tbl <- if (!is.null(split_file)) load_split_table(split_file, split_pb_col) else NULL
+  split_tbl <- if (!is.null(split_file)) {
+    load_split_table(split_file, split_pb_col)
+  } else {
+    NULL
+  }
 
   if (!is.null(split_tbl) && splits) {
     if (is.null(names(pred_sigs))) {
-      stop("When 'splits = TRUE' and 'split_file' is provided, 'pred_sigs' must be a named list.")
+      stop(
+        "When 'splits = TRUE' and 'split_file' is provided, 'pred_sigs' must be a named list."
+      )
     }
 
     split_cols <- setdiff(names(split_tbl), split_pb_col)
-    if (!setequal(split_cols, names(pred_sigs))) {
-      stop("Split columns in 'split_file' must exactly match names(pred_sigs) when 'splits = TRUE'.")
+    missing_split_cols <- setdiff(names(pred_sigs), split_cols)
+    if (length(missing_split_cols) > 0) {
+      stop(
+        "All names(pred_sigs) must be present as split columns in 'split_file' when 'splits = TRUE'. Missing columns: ",
+        paste(missing_split_cols, collapse = ", ")
+      )
     }
   }
 
-  sig_eval_helper <- function(source_sigs,
-                              pred_sigs,
-                              true_sigs,
-                              source,
-                              target,
-                              BPPARAM,
-                              se = NULL,
-                              ridge_benchmark = FALSE,
-                              pb_col = NULL,
-                              control_value = NULL) {
+  sig_eval_helper <- function(
+    source_sigs,
+    pred_sigs,
+    true_sigs,
+    source,
+    target,
+    BPPARAM,
+    se = NULL,
+    ridge_benchmark = FALSE,
+    pb_col = NULL,
+    control_value = NULL
+  ) {
     if (length(pred_sigs) == 0) {
-      return(empty_eval_df(source = source, target = target, ridge_benchmark = ridge_benchmark))
+      return(empty_eval_df(
+        source = source,
+        target = target,
+        ridge_benchmark = ridge_benchmark
+      ))
     }
 
     # Separating Top 100 and Full-ranked true signatures
@@ -187,9 +220,14 @@ sig_eval_table <- function(source_sigs,
     jacc_source_dest <- v.jaccard(pred_sigs, dest_short_sigs)
 
     # Displacement
-    displaced <- count_displaced_genes(recon_sig = pred_sigs, seed_sig = source_sigs)
+    displaced <- count_displaced_genes(
+      recon_sig = pred_sigs,
+      seed_sig = source_sigs
+    )
     n_displaced <- unname(unlist(lapply(displaced, function(x) x$displaced)))
-    n_not_displaced <- unname(unlist(lapply(displaced, function(x) x$not_displaced)))
+    n_not_displaced <- unname(unlist(lapply(displaced, function(x) {
+      x$not_displaced
+    })))
 
     #Rank-based enrichment
     fgsea_results <- v.fgsea(
@@ -218,15 +256,19 @@ sig_eval_table <- function(source_sigs,
 
     if (ridge_benchmark) {
       benchmark_fn <- function(geneset_list) {
-        vapply(names(geneset_list), function(pb_name) {
-          ridge_benchmark_r2(
-            se = se,
-            geneset = geneset_list[[pb_name]],
-            pb_col = pb_col,
-            perturbation = pb_name,
-            control_value = control_value
-          )
-        }, numeric(1))
+        vapply(
+          names(geneset_list),
+          function(pb_name) {
+            ridge_benchmark_r2(
+              se = se,
+              geneset = geneset_list[[pb_name]],
+              pb_col = pb_col,
+              perturbation = pb_name,
+              control_value = control_value
+            )
+          },
+          numeric(1)
+        )
       }
       eval_df$source_r2 <- benchmark_fn(source_sigs)
       eval_df$pred_r2 <- benchmark_fn(pred_sigs)
@@ -236,18 +278,26 @@ sig_eval_table <- function(source_sigs,
     return(eval_df)
   }
 
-  if(splits) {
+  if (splits) {
     n_splits <- length(pred_sigs)
     eval_dfs <- list()
     for (split in 1:n_splits) {
-      message(paste0("Processing Split ", split))
+      split_name <- names(pred_sigs)[split]
+      split_label <- if (
+        !is.null(split_name) && !is.na(split_name) && nzchar(split_name)
+      ) {
+        split_name
+      } else {
+        paste0("split_", split)
+      }
+
+      message(paste0("Processing Split ", split_label))
       pred_sigs_split <- pred_sigs[[split]]
       split_col <- NULL
 
       if (!is.null(split_tbl)) {
-        split_name <- names(pred_sigs)[split]
-        split_col <- if (!is.null(split_name) && split_name %in% names(split_tbl)) {
-          split_name
+        split_col <- if (split_label %in% names(split_tbl)) {
+          split_label
         } else {
           paste0("split_", split)
         }
@@ -262,18 +312,24 @@ sig_eval_table <- function(source_sigs,
         split_type = split_type
       )
 
-      eval_df <- sig_eval_helper(source_sigs = filtered_inputs$source_sigs,
-                                 pred_sigs = filtered_inputs$pred_sigs,
-                                 true_sigs = filtered_inputs$true_sigs,
-                                 source = source,
-                                 target = target,
-                                 BPPARAM = BPPARAM,
-                                 se = se,
-                                 ridge_benchmark = ridge_benchmark,
-                                 pb_col = pb_col,
-                                 control_value = control_value
-                                 )
-      eval_df$split <- split
+      eval_df <- sig_eval_helper(
+        source_sigs = filtered_inputs$source_sigs,
+        pred_sigs = filtered_inputs$pred_sigs,
+        true_sigs = filtered_inputs$true_sigs,
+        source = source,
+        target = target,
+        BPPARAM = BPPARAM,
+        se = se,
+        ridge_benchmark = ridge_benchmark,
+        pb_col = pb_col,
+        control_value = control_value
+      )
+      split_value <- if (grepl("^split_[0-9]+$", split_label)) {
+        as.integer(sub("^split_", "", split_label))
+      } else {
+        split
+      }
+      eval_df$split <- rep(split_value, nrow(eval_df))
       eval_dfs[[split]] <- eval_df
     }
     eval_df <- dplyr::bind_rows(eval_dfs)
@@ -283,17 +339,18 @@ sig_eval_table <- function(source_sigs,
       pred_sigs = pred_sigs,
       true_sigs = true_sigs
     )
-    eval_df <- sig_eval_helper(source_sigs = filtered_inputs$source_sigs,
-                               pred_sigs = filtered_inputs$pred_sigs,
-                               true_sigs = filtered_inputs$true_sigs,
-                               source = source,
-                               target = target,
-                               BPPARAM = BPPARAM,
-                               se = se,
-                               ridge_benchmark = ridge_benchmark,
-                               pb_col = pb_col,
-                               control_value = control_value
-                               )
+    eval_df <- sig_eval_helper(
+      source_sigs = filtered_inputs$source_sigs,
+      pred_sigs = filtered_inputs$pred_sigs,
+      true_sigs = filtered_inputs$true_sigs,
+      source = source,
+      target = target,
+      BPPARAM = BPPARAM,
+      se = se,
+      ridge_benchmark = ridge_benchmark,
+      pb_col = pb_col,
+      control_value = control_value
+    )
   }
 
   return(eval_df)
@@ -320,24 +377,25 @@ sig_eval_table <- function(source_sigs,
 #' @param limit Number of genes to keep in the output, or a vector of lengths
 #'
 #' @export
-recon_eval_df <- function(ig,
-                          seed_name,
-                          source_sigs,
-                          dest_sigs,
-                          restart = 0.75,
-                          avg_p = FALSE,
-                          avg_p_vals = c(1e-4, 1e-1),
-                          avg_p_length = 5,
-                          bootstrap = FALSE,
-                          n_bootstraps = 1000,
-                          recon = TRUE,
-                          use_weights = TRUE,
-                          weights.pwr = 1,
-                          normalize = c("row", "column", "laplacian"),
-                          save = FALSE,
-                          save_path = "",
-                          limit = 30) {
-
+recon_eval_df <- function(
+  ig,
+  seed_name,
+  source_sigs,
+  dest_sigs,
+  restart = 0.75,
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  recon = TRUE,
+  use_weights = TRUE,
+  weights.pwr = 1,
+  normalize = c("row", "column", "laplacian"),
+  save = FALSE,
+  save_path = "",
+  limit = 30
+) {
   normalize <- match.arg(normalize)
   dest_net <- ig
 
@@ -350,31 +408,39 @@ recon_eval_df <- function(ig,
 
   # Baseline: Without Recontextualization
   if (!recon) {
-    displaced <- count_displaced_genes(recon_sig = dest_short_sigs, seed_sig = source_sigs)
+    displaced <- count_displaced_genes(
+      recon_sig = dest_short_sigs,
+      seed_sig = source_sigs
+    )
     n_displaced <- unname(unlist(lapply(displaced, function(x) x$displaced)))
-    n_not_displaced <- unname(unlist(lapply(displaced, function(x) x$not_displaced)))
+    n_not_displaced <- unname(unlist(lapply(displaced, function(x) {
+      x$not_displaced
+    })))
     jacc_source_dest <- v.jaccard(source_sigs, dest_short_sigs)
-    ks_obj <- v.ks.test(data_vecs = source_sigs,
-                        ref_vecs = dest_full_sigs,
-                        use_weights = use_weights,
-                        weights.pwr = weights.pwr)
+    ks_obj <- v.ks.test(
+      data_vecs = source_sigs,
+      ref_vecs = dest_full_sigs,
+      use_weights = use_weights,
+      weights.pwr = weights.pwr
+    )
     Ds <- ks_obj$D_stats
     p_vals <- ks_obj$p_vals
-
   } else {
     # Recontextualized Signature
-    recon_sigs <- network_sig(ig = ig,
-                              seeds = source_sigs,
-                              sig = "rwr",
-                              avg_p = avg_p,
-                              avg_p_vals = avg_p_vals,
-                              avg_p_length = avg_p_length,
-                              p = restart,
-                              bootstrap = bootstrap,
-                              n_bootstraps = n_bootstraps,
-                              limit = limit)
-    if(save) {
-      saveRDS(recon_sigs, file.path(save_path, paste0(seed_name,".rds")))
+    recon_sigs <- network_sig(
+      ig = ig,
+      seeds = source_sigs,
+      sig = "rwr",
+      avg_p = avg_p,
+      avg_p_vals = avg_p_vals,
+      avg_p_length = avg_p_length,
+      p = restart,
+      bootstrap = bootstrap,
+      n_bootstraps = n_bootstraps,
+      limit = limit
+    )
+    if (save) {
+      saveRDS(recon_sigs, file.path(save_path, paste0(seed_name, ".rds")))
     }
 
     # Jaccard Similarity
@@ -382,16 +448,23 @@ recon_eval_df <- function(ig,
 
     # Displacement
     stopifnot(all.equal(names(recon_sigs), names(source_sigs)))
-    displaced <- count_displaced_genes(recon_sig = recon_sigs, seed_sig = source_sigs)
+    displaced <- count_displaced_genes(
+      recon_sig = recon_sigs,
+      seed_sig = source_sigs
+    )
     n_displaced <- unname(unlist(lapply(displaced, function(x) x$displaced)))
-    n_not_displaced <- unname(unlist(lapply(displaced, function(x) x$not_displaced)))
+    n_not_displaced <- unname(unlist(lapply(displaced, function(x) {
+      x$not_displaced
+    })))
 
     # KS.Test (Ranks of Top n recontextualized compared to Full list of dest)
     stopifnot(all.equal(names(recon_sigs), names(dest_full_sigs)))
-    ks_obj <- v.ks.test(data_vecs = recon_sigs,
-                        ref_vecs = dest_full_sigs,
-                        use_weights = use_weights,
-                        weights.pwr = weights.pwr)
+    ks_obj <- v.ks.test(
+      data_vecs = recon_sigs,
+      ref_vecs = dest_full_sigs,
+      use_weights = use_weights,
+      weights.pwr = weights.pwr
+    )
     Ds <- ks_obj$D_stats
     p_vals <- ks_obj$p_vals
   }
@@ -447,5 +520,5 @@ fishers_meta_p <- function(pvals) {
   # pvals: a vector of p-values, e.g. c(0.01, 0.03, 0.25)
   X <- -2 * sum(log(pvals))
   df <- 2 * length(pvals)
-  return(pchisq(X, df=df, lower.tail = FALSE))
+  return(pchisq(X, df = df, lower.tail = FALSE))
 }
