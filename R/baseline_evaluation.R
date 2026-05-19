@@ -356,6 +356,115 @@ sig_eval_table <- function(
   return(eval_df)
 }
 
+#' Pair a Recontextualization Evaluation Table With a No-Change Baseline
+#'
+#' @description
+#' Merges a `sig_eval_table()` result with a saved no-change evaluation table,
+#' adds paired delta metrics, prints median performance and paired Wilcoxon
+#' meta-test summaries, and returns the paired table.
+#'
+#' @param combined_df A data frame returned by `sig_eval_table()` for a
+#'   recontextualized/predicted signature set.
+#' @param no_change_eval_path File path to an `.rds` containing the no-change
+#'   `sig_eval_table()` output.
+#'
+#' @return A tibble containing paired no-change (`*_FALSE`) and predicted
+#'   (`*_TRUE`) metrics, plus `kept_alpha`, `NES_delta`, and `Jacc_delta`.
+#'
+#' @export
+paired_eval_table <- function(combined_df, no_change_eval_path) {
+  if (!is.data.frame(combined_df)) {
+    stop("'combined_df' must be a data frame returned by sig_eval_table().")
+  }
+  if (!is.character(no_change_eval_path) || length(no_change_eval_path) != 1) {
+    stop("'no_change_eval_path' must be a single file path.")
+  }
+  if (!file.exists(no_change_eval_path)) {
+    stop("'no_change_eval_path' does not exist: ", no_change_eval_path)
+  }
+
+  combined_no_recon_df <- readRDS(no_change_eval_path)
+  if (!is.data.frame(combined_no_recon_df)) {
+    stop("The object at 'no_change_eval_path' must be a data frame.")
+  }
+
+  required_no_change_cols <- c("source", "gene", "NES", "jacc")
+  missing_no_change_cols <- setdiff(required_no_change_cols, names(combined_no_recon_df))
+  if (length(missing_no_change_cols) > 0) {
+    stop(
+      "No-change evaluation table is missing columns: ",
+      paste(missing_no_change_cols, collapse = ", ")
+    )
+  }
+
+  required_combined_cols <- c("source", "gene", "NES", "jacc", "kept", "displaced")
+  missing_combined_cols <- setdiff(required_combined_cols, names(combined_df))
+  if (length(missing_combined_cols) > 0) {
+    stop(
+      "'combined_df' is missing columns: ",
+      paste(missing_combined_cols, collapse = ", ")
+    )
+  }
+
+  eval_table <- merge(
+    combined_no_recon_df %>%
+      dplyr::select(source, gene, NES, jacc),
+    combined_df %>%
+      dplyr::mutate(kept_alpha = kept / (kept + displaced)),
+    by = c("source", "gene"),
+    suffixes = c("_FALSE", "_TRUE")
+  ) %>%
+    dplyr::mutate(
+      NES_delta = NES_TRUE - NES_FALSE,
+      Jacc_delta = jacc_TRUE - jacc_FALSE
+    ) %>%
+    tibble::as_tibble()
+
+  print(
+    eval_table %>%
+      dplyr::group_by(source) %>%
+      dplyr::summarise(
+        NES_median = stats::median(NES_TRUE, na.rm = TRUE),
+        jacc_median = stats::median(jacc_TRUE, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      dplyr::summarise(
+        NES_median = stats::median(NES_median, na.rm = TRUE),
+        jacc_median = stats::median(jacc_median, na.rm = TRUE)
+      )
+  )
+
+  print(
+    eval_table %>%
+      dplyr::group_by(source) %>%
+      dplyr::summarize(
+        Jacc_Wilcox_pval = suppressWarnings(
+          stats::wilcox.test(
+            jacc_TRUE,
+            jacc_FALSE,
+            paired = TRUE,
+            alternative = "greater"
+          )$p.value
+        ),
+        KS_Wilcox_pval = suppressWarnings(
+          stats::wilcox.test(
+            NES_TRUE,
+            NES_FALSE,
+            paired = TRUE,
+            alternative = "greater"
+          )$p.value
+        ),
+        .groups = "drop"
+      ) %>%
+      dplyr::summarize(
+        KS_meta_p = fishers_meta_p(KS_Wilcox_pval),
+        Jacc_meta_p = fishers_meta_p(Jacc_Wilcox_pval)
+      )
+  )
+
+  eval_table
+}
+
 #' Evaluate recontextualized signatures
 #'
 #' @param ig igraph
