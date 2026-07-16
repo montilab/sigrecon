@@ -34,7 +34,6 @@ Imports:
     Matrix,
     MDMR,
     glmnet,
-    SILGGM,
     Seurat,
     parallel,
     abind
