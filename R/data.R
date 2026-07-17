@@ -1,269 +1,151 @@
-#' Drug Matrix Kidney Dataset
+#' Registry of on-demand perturbational signature datasets
 #'
-#' DEGs between drug (max dose) and control samples in DrugMatrix kidney data.
-#' There are 39 drugs and DEGs are mouse genes.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 15248 genes ranked by logFC*-log10(adj.p.val).
-#'
-#' @format Nested list of genesets.
-#' @source \url{https://ntp.niehs.nih.gov/data/drugmatrix}
-"drugmatrix.kidney"
+#' @description
+#' Internal registry describing the datasets available via get_dataset().
+#' Each dataset is a nested list of genesets (`up` = top 100 DEGs,
+#' `up_full` = full ranked gene list), hosted as a release asset on
+#' `montilab/sigrecon` and fetched on first use.
+#' @noRd
+.sigrecon_dataset_registry <- data.frame(
+  name = c(
+    "drugmatrix.kidney", "drugmatrix.liver",
+    "sciplex.a549", "sciplex.k562", "sciplex.mcf7",
+    "perturbseq.k562", "perturbseq.rpe1",
+    "neurips2023.b", "neurips2023.nk", "neurips2023.t", "neurips2023.myeloid",
+    "gtex.blood", "gtex.brain.hippo",
+    "tahoe.a498", "tahoe.hct15", "tahoe.hec_1_a", "tahoe.lovo",
+    "tahoe.miapaca_2", "tahoe.nci_h23", "tahoe.panc03.27",
+    "tahoe.snu_1", "tahoe.snu_423", "tahoe.sw48"
+  ),
+  description = c(
+    "DEGs between drug (max dose) and control samples in DrugMatrix kidney data. 39 drugs, mouse genes.",
+    "DEGs between drug (max dose) and control samples in DrugMatrix liver data. 39 drugs, mouse genes.",
+    "DEGs between drug (max dose) and control samples in SciPlex A549 cell line data. 23 drugs, EnsemblIDs.",
+    "DEGs between drug (max dose) and control samples in SciPlex K562 cell line data. 23 drugs, EnsemblIDs.",
+    "DEGs between drug (max dose) and control samples in SciPlex MCF7 cell line data. 23 drugs, EnsemblIDs.",
+    "DEGs between drug (max dose) and control samples in Perturb-seq K562 cell line data. 1297 CRISPRi knockdowns, HGNC symbols.",
+    "DEGs between drug (max dose) and control samples in Perturb-seq RPE1 cell line data. 1297 CRISPRi knockdowns, HGNC symbols.",
+    "DEGs between drug and control (DMSO) samples in NeurIPS 2023 human PBMC B cells. 135 shared drugs, HGNC symbols.",
+    "DEGs between drug and control (DMSO) samples in NeurIPS 2023 human PBMC NK cells. 135 shared drugs, HGNC symbols.",
+    "DEGs between drug and control (DMSO) samples in NeurIPS 2023 human PBMC T cells. 135 shared drugs, HGNC symbols.",
+    "DEGs between drug and control (DMSO) samples in NeurIPS 2023 human PBMC myeloid cells. 135 shared drugs, HGNC symbols.",
+    "DEGs between old and young whole blood bulk samples (age as numerical covariate) from GTEx v10.",
+    "DEGs between old and young brain hippocampus bulk samples (age as numerical covariate) from GTEx v10.",
+    "DEGs between drug and control samples in Tahoe A498 cell line data. 108 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe HCT15 cell line data. 105 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe HEC-1-A cell line data. 109 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe LOVO cell line data. 109 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe MIAPACA-2 cell line data. 109 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe NCI-H23 cell line data. 108 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe PANC03.27 cell line data. 106 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe SNU-1 cell line data. 105 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe SNU-423 cell line data. 108 drugs, HGNC/Ensembl mix.",
+    "DEGs between drug and control samples in Tahoe SW48 cell line data. 104 drugs, HGNC/Ensembl mix."
+  ),
+  source = c(
+    "https://ntp.niehs.nih.gov/data/drugmatrix",
+    "https://ntp.niehs.nih.gov/data/drugmatrix",
+    "https://figshare.com/articles/dataset/sciPlex_dataset/24681285?file=43381398",
+    "https://figshare.com/articles/dataset/sciPlex_dataset/24681285?file=43381398",
+    "https://figshare.com/articles/dataset/sciPlex_dataset/24681285?file=43381398",
+    "https://plus.figshare.com/articles/dataset/_Mapping_information-rich_genotype-phenotype_landscapes_with_genome-scale_Perturb-seq_Replogle_et_al_2022_processed_Perturb-seq_datasets/20029387",
+    "https://plus.figshare.com/articles/dataset/_Mapping_information-rich_genotype-phenotype_landscapes_with_genome-scale_Perturb-seq_Replogle_et_al_2022_processed_Perturb-seq_datasets/20029387",
+    "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945",
+    "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945",
+    "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945",
+    "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945",
+    "https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression",
+    "https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M",
+    "https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M"
+  ),
+  stringsAsFactors = FALSE
+)
 
-#' Drug Matrix Liver Dataset
-#'
-#' DEGs between drug (max dose) and control samples in DrugMatrix liver data.
-#' There are 39 drugs and DEGs are mouse genes.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 15248 genes ranked by logFC*-log10(adj.p.val).
-#'
-#' @format Nested list of genesets
-#' @source \url{https://ntp.niehs.nih.gov/data/drugmatrix}
-"drugmatrix.liver"
+.sigrecon_release_base_url <- "https://github.com/montilab/sigrecon/releases/download/data-v1/"
 
-#' Sciplex A549 Dataset
+#' List available on-demand datasets
 #'
-#' DEGs between drug (max dose) and control samples in SciPlex A549 cell line data.
-#' There are 23 drugs and DEGs are EnsemblIDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 2789 - 15469 based on the perturbation.
+#' @description
+#' Returns a table of the perturbational signature datasets available via
+#' [get_dataset()], with a short description and original data source for each.
 #'
-#' @format Nested list of genesets
-#' @source \url{https://figshare.com/articles/dataset/sciPlex_dataset/24681285?file=43381398}
-"sciplex.a549"
+#' @return A data.frame with columns `name`, `description`, `source`.
+#'
+#' @examples
+#' list_datasets()
+#'
+#' @export
+list_datasets <- function() {
+  .sigrecon_dataset_registry
+}
 
-#' Sciplex K562 Dataset
+#' Fetch a bundled perturbational signature dataset
 #'
-#' DEGs between drug (max dose) and control samples in SciPlex K562 cell line data.
-#' There are 23 drugs and DEGs are EnsemblIDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 2789 - 14703 based on the perturbation.
+#' @description
+#' Downloads (and locally caches, via `BiocFileCache`) one of the datasets
+#' listed in [list_datasets()]. Datasets are hosted as release assets on
+#' `montilab/sigrecon` rather than bundled with the package, so the first
+#' call to `get_dataset()` for a given name requires network access;
+#' subsequent calls reuse the local cache.
 #'
-#' @format Nested list of genesets
-#' @source \url{https://figshare.com/articles/dataset/sciPlex_dataset/24681285?file=43381398}
-"sciplex.k562"
+#' @param name Dataset name. See [list_datasets()] for available names.
+#' @param force Logical. If `TRUE`, re-download even if a cached copy exists.
+#'   Default is `FALSE`.
+#'
+#' @return A named list of genesets. Each element has an `up` component
+#'   (top 100 DEGs) and an `up_full` component (the full ranked gene list).
+#'
+#' @examples
+#' \dontrun{
+#' tahoe_nci_h23 <- get_dataset("tahoe.nci_h23")
+#' }
+#'
+#' @export
+get_dataset <- function(name, force = FALSE) {
+  if (!is.character(name) || length(name) != 1) {
+    stop("'name' must be a single character string. See list_datasets() for available names.")
+  }
 
-#' Sciplex MCF7 Dataset
-#'
-#' DEGs between drug (max dose) and control samples in SciPlex MCF7 cell line data.
-#' There are 23 drugs and DEGs are EnsemblIDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 6797 - 20234 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://figshare.com/articles/dataset/sciPlex_dataset/24681285?file=43381398}
-"sciplex.mcf7"
+  if (!name %in% .sigrecon_dataset_registry$name) {
+    stop(sprintf(
+      "Unknown dataset '%s'. See list_datasets() for available names.",
+      name
+    ))
+  }
 
-#' Perturb-seq K562 Dataset
-#'
-#' DEGs between drug (max dose) and control samples in K562 cell line data.
-#' There are 1297 CRISPRi knockdowns and DEGs are HGNC symbols.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 429 - 8563 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://plus.figshare.com/articles/dataset/_Mapping_information-rich_genotype-phenotype_landscapes_with_genome-scale_Perturb-seq_Replogle_et_al_2022_processed_Perturb-seq_datasets/20029387}
-"perturbseq.k562"
+  if (!requireNamespace("BiocFileCache", quietly = TRUE)) {
+    stop("The 'BiocFileCache' package is required for get_dataset(). Install it with BiocManager::install('BiocFileCache').")
+  }
 
-#' Perturb-seq RPE1 Dataset
-#'
-#' DEGs between drug (max dose) and control samples in RPE1 cell line data.
-#' There are 1297 CRISPRi knockdowns and DEGs are HGNC symbols.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 438 - 8749 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://plus.figshare.com/articles/dataset/_Mapping_information-rich_genotype-phenotype_landscapes_with_genome-scale_Perturb-seq_Replogle_et_al_2022_processed_Perturb-seq_datasets/20029387}
-"perturbseq.rpe1"
+  url <- paste0(.sigrecon_release_base_url, name, ".rda")
+  bfc <- BiocFileCache::BiocFileCache(ask = FALSE)
 
-#' Neurips 2023 B Cell signatures
-#'
-#' DEGs between drug and control samples (DMSO) in human pbmcs.
-#' There are 135 shared drugs across the 4 cell types and DEGs are HGNC symbols.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 6349 genes ranked by logFC*-log10(adj.p.val).
-#' The pseudobulk dataset these genesets were derived from had 6349 genes.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945}
-"neurips2023.b"
+  if (force) {
+    hits <- BiocFileCache::bfcquery(bfc, url, field = "rname", exact = TRUE)
+    if (nrow(hits) > 0) {
+      BiocFileCache::bfcremove(bfc, hits$rid)
+    }
+  }
 
-#' Neurips 2023 NK Cell signatures
-#'
-#' DEGs between drug and control samples (DMSO) in human NK cells.
-#' There are 135 shared drugs across the 4 cell types and DEGs are HGNC symbols.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 6349 genes ranked by logFC*-log10(adj.p.val).
-#' The pseudobulk dataset these genesets were derived from had 6349 genes.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945}
-"neurips2023.nk"
+  path <- BiocFileCache::bfcrpath(bfc, url)
 
-#' Neurips 2023 T Cell signatures
-#'
-#' DEGs between drug and control samples (DMSO) in human T cells.
-#' There are 135 shared drugs across the 4 cell types and DEGs are HGNC symbols.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 6349 genes ranked by logFC*-log10(adj.p.val).
-#' The pseudobulk dataset these genesets were derived from had 6349 genes.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945}
-"neurips2023.t"
+  e <- new.env()
+  loaded <- load(path, envir = e)
+  if (length(loaded) != 1) {
+    stop(sprintf(
+      "Expected a single object in the downloaded file for '%s', found: %s",
+      name, paste(loaded, collapse = ", ")
+    ))
+  }
 
-#' Neurips 2023 Myeloid Cell signatures
-#'
-#' DEGs between drug and control samples (DMSO) in human myeloid cells.
-#' There are 135 shared drugs across the 4 cell types and DEGs are HGNC symbols.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 6349 genes ranked by logFC*-log10(adj.p.val).
-#' The pseudobulk dataset these genesets were derived from had 6349 genes.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE279945}
-"neurips2023.myeloid"
-
-#' GTEX Whole Blood Aging signatures (Continuous)
-#'
-#' DEGs between old and young whole blood bulk samples (age as a numerical covariate) from GTEX v10.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
-#'
-#' @format Nested list of genesets
-#' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
-"gtex.blood"
-
-#' GTEX Brain Hippocampus Aging signatures (Continuous)
-#'
-#' DEGs between old and young brain hippocampus bulk samples (age as a numerical covariate) from GTEX v10.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of 23131 genes ranked by logFC*-log10(adj.p.val).
-#'
-#' @format Nested list of genesets
-#' @source \url{https://gtexportal.org/home/downloads/adult-gtex/bulk_tissue_expression}
-"gtex.brain.hippo"
-
-#' Tahoe A498 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe A498 cell line data.
-#' There are 108 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 3982 - 41479 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.a498"
-
-#' Tahoe HCT15 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe HCT15 cell line data.
-#' There are 105 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 2393 - 36874 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.hct15"
-
-#' Tahoe HEC-1-A Dataset
-#'
-#' DEGs between drug and control samples in Tahoe HEC-1-A cell line data.
-#' There are 109 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 3979 - 28808 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.hec_1_a"
-
-#' Tahoe LOVO Dataset
-#'
-#' DEGs between drug and control samples in Tahoe LOVO cell line data.
-#' There are 109 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 3968 - 27303 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.lovo"
-
-#' Tahoe MIAPACA-2 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe MIAPACA-2 cell line data.
-#' There are 109 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 7620 - 39047 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.miapaca_2"
-
-#' Tahoe NCI-H23 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe NCI-H23 cell line data.
-#' There are 108 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 5448 - 39771 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.nci_h23"
-
-#' Tahoe PANC03.27 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe PANC03.27 cell line data.
-#' There are 106 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 3122 - 38165 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.panc03.27"
-
-#' Tahoe SNU-1 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe SNU-1 cell line data.
-#' There are 105 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 2393 - 36250 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.snu_1"
-
-#' Tahoe SNU-423 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe SNU-423 cell line data.
-#' There are 108 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 3148 - 39444 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.snu_423"
-
-#' Tahoe SW48 Dataset
-#'
-#' DEGs between drug and control samples in Tahoe SW48 cell line data.
-#' There are 104 drugs and gene identifiers are a mixture of HGNC symbols and Ensembl IDs.
-#' For each geneset, the `up` set represents the top 100 DEGs
-#' and the `up_full` represents the full ranked list of genes ranked by logFC*-log10(adj.p.val).
-#' The length of `up_full` ranges from 2393 - 36402 based on the perturbation.
-#'
-#' @format Nested list of genesets
-#' @source \url{https://github.com/ArcInstitute/arc-virtual-cell-atlas/tree/main/tahoe-100M}
-"tahoe.sw48"
+  get(loaded, envir = e)
+}
