@@ -171,11 +171,14 @@ sft.check <- function(sft) {
 #' 2. Constructs the adjacency matrix using WGCNA::adjacency.fromSimilarity().
 #' 3. Optionally sets the diagonal to zero and/or converts the result to an igraph object.
 #'
-#' @importFrom WGCNA pickSoftThreshold.fromSimilarity adjacency.fromSimilarity
 #' @importFrom doParallel registerDoParallel
 wgcna.power <- function(cor_mat,
                         cores=1,
                         diag_zero=TRUE) {
+
+  if (!requireNamespace("WGCNA", quietly = TRUE)) {
+    stop("The 'WGCNA' package is required for wgcna.power(). Install it with BiocManager::install('WGCNA').")
+  }
 
   # Set parallel computing environment
   doParallel::registerDoParallel(cores=cores)
@@ -221,7 +224,6 @@ wgcna.power <- function(cor_mat,
 #' 3. Constructs the adjacency matrix using WGCNA::adjacency().
 #' 4. Optionally converts the result to an igraph object.
 #'
-#' @importFrom WGCNA bicor adjacency pickSoftThreshold
 #' @importFrom doParallel registerDoParallel
 #' @importFrom Biobase exprs
 #' @importFrom SummarizedExperiment assays
@@ -237,6 +239,10 @@ wgcna.adj <- function(mat,
                       powers=c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
                       igraph=FALSE,
                       diag_zero=FALSE) {
+  if (!requireNamespace("WGCNA", quietly = TRUE)) {
+    stop("The 'WGCNA' package is required for wgcna.adj(). Install it with BiocManager::install('WGCNA').")
+  }
+
   # Ad hoc namespace changes
   bicor = WGCNA::bicor
   cor = WGCNA::bicor

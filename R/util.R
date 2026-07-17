@@ -157,8 +157,11 @@ common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALS
 #' selecting genes that are present in all objects. It continues until it reaches
 #' the specified limit or exhausts all common variable genes.
 #'
-#' @importFrom Seurat VariableFeatures
 seurat_common_var_genes <- function(seurat_objs, limit) {
+
+  if (!requireNamespace("Seurat", quietly = TRUE)) {
+    stop("The 'Seurat' package is required for seurat_common_var_genes(). Install it with install.packages('Seurat').")
+  }
 
   if(seurat_objs[[1]]@version == "5.0.1") {
     pvectors <- lapply(seurat_objs, function(x) pvector$new(Seurat::VariableFeatures(x)))
@@ -283,176 +286,6 @@ sig_filter_fn <- function(diff_table,
   return(results)
 }
 
-#' @title Run MDMR regression with robust error handling
-#' @description A helper function to perform MDMR regression given a gene signature,
-#'   a SummarizedExperiment object, and a phenotype label from colData.
-#' @param signature A character vector of gene IDs.
-#' @param se A SummarizedExperiment object containing expression data and phenotype information.
-#' @param phenotype_label A character string specifying the column name in colData(se)
-#'   to be used as the phenotype for MDMR (e.g., "AGE").
-#' @param assay_label A character string specifying the name of the assay in the se object to be used for MDMR.
-#' @param method_label An optional character string for logging/warning purposes,
-#'   indicating which method (e.g., "non_recon") is calling this function.
-#' @return A list with elements 'stat' (the MDMR statistic) and 'r2' (the R-squared/pr.sq),
-#'   or a list with NA_real_ values if an error or invalid input occurs.
-#'
-#' @importFrom MDMR mdmr
-#' @importFrom SummarizedExperiment colData
-#'
-#' @export
-mdmr_eval <- function(signature,
-                      se,
-                      phenotype_label,
-                      assay_label = "DESeq2_log",
-                      method_label = "MDMR_run") {
-
-  # Initialize return values
-  res <- list(stat = NA_real_, r2 = NA_real_)
-
-  # --- 1. Validate Phenotype Data ---
-  if (!phenotype_label %in% colnames(colData(se))) {
-    warning(paste0("Skipping ", method_label, ": Phenotype '", phenotype_label, "' not found in colData(se)."))
-    return(res)
-  }
-
-  pheno_data <- colData(se)[[phenotype_label]]
-  if (is.null(pheno_data) || length(unique(pheno_data)) < 2) {
-    warning(paste0("Skipping ", method_label, ": Phenotype '", phenotype_label, "' data is insufficient or constant."))
-    return(res)
-  }
-
-  # Calculate distance matrix for phenotype
-  y_d <- dist(as.matrix(pheno_data), method = "manhattan")
-
-  # --- 2. Validate Gene Signature and Expression Data ---
-  if (is.null(signature) || length(signature) < 2) {
-    warning(paste0("Skipping ", method_label, ": Gene signature insufficient (<2 genes)."))
-    return(res)
-  }
-
-  all_features_in_se <- rownames(se)
-  valid_genes <- intersect(signature, all_features_in_se)
-
-  if (length(valid_genes) < 2) {
-    warning(paste0("Skipping ", method_label, ": Too few valid genes (", length(valid_genes), ") from signature found in se object."))
-    return(res)
-  }
-
-  expression_mat <- se[valid_genes,]@assays@data[[assay_label]]
-
-  if (nrow(expression_mat) < 2 || ncol(expression_mat) < 2) {
-    warning(paste0("Skipping ", method_label, ": Expression matrix for signature is insufficient (",
-                   nrow(expression_mat), " genes, ", ncol(expression_mat), " samples)."))
-    return(res)
-  }
-
-  # --- 3. Run MDMR with error handling ---
-  mdmr_output <- tryCatch({
-    # Transpose for MDMR: samples as rows, genes as columns
-    mdmr_res <- mdmr(t(expression_mat), y_d)
-    list(stat = mdmr_res$stat[1,], r2 = mdmr_res$pr.sq[1,])
-  }, error = function(e) {
-    warning(paste0("MDMR failed for ", method_label, ": ", e$message))
-    res # Return initialized NAs on error
-  })
-
-  return(mdmr_output)
-}
-
-#' Compute Ridge Benchmark R-squared for a Gene Set
-#'
-#' @description
-#' Fits a ridge regression model predicting a binary perturbation indicator from
-#' the expression of genes in a supplied geneset, then returns the in-sample
-#' R-squared of that fitted model.
-#'
-#' @param se A SummarizedExperiment object containing expression data and sample metadata.
-#' @param geneset A character vector of gene IDs.
-#' @param pb_col A character string specifying the column in `colData(se)` that
-#'   stores perturbation labels.
-#' @param perturbation A character string specifying the perturbation label to benchmark.
-#' @param control_value A character string specifying the control label
-#'   (e.g. `"DMSO"` or `"non-targeting"`).
-#'
-#' @return A numeric R-squared value, or `NA_real_` if the model cannot be fit.
-#'
-#' @importFrom SummarizedExperiment assay colData
-#' @importFrom glmnet cv.glmnet
-#' @export
-ridge_benchmark_r2 <- function(se, geneset, pb_col, perturbation, control_value) {
-  stopifnot(is(se, "SummarizedExperiment"))
-
-  if (!pb_col %in% colnames(SummarizedExperiment::colData(se))) {
-    stop(sprintf("Column '%s' not found in colData(se).", pb_col))
-  }
-
-  pb_vals <- SummarizedExperiment::colData(se)[[pb_col]]
-  pb_vals <- as.character(pb_vals)
-  perturbation <- as.character(perturbation)
-  control_value <- as.character(control_value)
-
-  keep_samples <- !is.na(pb_vals) & pb_vals %in% c(perturbation, control_value)
-  if (sum(keep_samples) < 2) {
-    return(NA_real_)
-  }
-
-  se_subset <- se[, keep_samples, drop = FALSE]
-  subset_pb_vals <- as.character(SummarizedExperiment::colData(se_subset)[[pb_col]])
-  benchmark_response <- as.numeric(subset_pb_vals == perturbation)
-
-  expr_mat <- SummarizedExperiment::assay(se_subset)
-  gene_names <- rownames(expr_mat)
-
-  if (is.null(gene_names)) {
-    stop("Expression assay must have rownames.")
-  }
-
-  valid_genes <- intersect(geneset, gene_names)
-  if (length(valid_genes) == 0) {
-    return(NA_real_)
-  }
-
-  x <- t(expr_mat[valid_genes, , drop = FALSE])
-  if (is(x, "sparseMatrix")) {
-    x <- as.matrix(x)
-  }
-
-  y <- benchmark_response
-
-  if (length(unique(y)) < 2 || nrow(x) < 2) {
-    return(NA_real_)
-  }
-
-  if (ncol(x) == 0) {
-    return(NA_real_)
-  }
-
-  gene_sd <- apply(x, 2, stats::sd)
-  keep_genes <- !is.na(gene_sd) & gene_sd > 0
-  x <- x[, keep_genes, drop = FALSE]
-
-  if (ncol(x) == 0) {
-    return(NA_real_)
-  }
-
-  cv_fit <- glmnet::cv.glmnet(
-    x = x,
-    y = y,
-    alpha = 0,
-    family = "gaussian",
-    standardize = TRUE
-  )
-
-  preds <- as.numeric(stats::predict(cv_fit, newx = x, s = "lambda.min"))
-  ss_tot <- sum((y - mean(y))^2)
-
-  if (ss_tot == 0) {
-    return(NA_real_)
-  }
-
-  ss_res <- sum((y - preds)^2)
-  1 - (ss_res / ss_tot)
-}
 
 #' Create appropriate BiocParallel backend
 #'

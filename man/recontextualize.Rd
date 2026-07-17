@@ -9,7 +9,7 @@ recontextualize(
   se = NULL,
   seeds = NULL,
   sigs = NULL,
-  score = c("gsva", "AUCell", "eigen"),
+  score = c("gsva", "eigen"),
   sig = c("rwr", "corr"),
   avg_p = FALSE,
   avg_p_vals = c(1e-04, 0.1),

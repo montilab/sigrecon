@@ -12,10 +12,6 @@ sig_eval_table(
   split_file = NULL,
   split_pb_col = "drug",
   split_type = NULL,
-  se = NULL,
-  ridge_benchmark = FALSE,
-  pb_col = NULL,
-  control_value = NULL,
   source = "source_context",
   target = "target_context",
   BPPARAM = NULL
@@ -38,17 +34,6 @@ a split table with a perturbation column and split logical columns.}
 \item{split_type}{Optional split subset to evaluate. If \code{"10th"}, evaluates
 perturbations with \code{FALSE} in the relevant split column. If \code{"90th"},
 evaluates perturbations with \code{TRUE} in the relevant split column.}
-
-\item{se}{Optional SummarizedExperiment object used for ridge benchmarking.}
-
-\item{ridge_benchmark}{Logical, indicating whether to compute ridge benchmark
-R-squared values for the source, predicted, and true signatures.}
-
-\item{pb_col}{Column in \code{colData(se)} containing perturbation labels
-for ridge benchmarking.}
-
-\item{control_value}{Label in \code{pb_col} indicating control samples
-(e.g. \code{"DMSO"} or \code{"non-targeting"}).}
 
 \item{source}{A character string describing the starting biological context.}
 

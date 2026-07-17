@@ -15,13 +15,6 @@
 #' @param split_type Optional split subset to evaluate. If `"10th"`, evaluates
 #'   perturbations with `FALSE` in the relevant split column. If `"90th"`,
 #'   evaluates perturbations with `TRUE` in the relevant split column.
-#' @param se Optional SummarizedExperiment object used for ridge benchmarking.
-#' @param ridge_benchmark Logical, indicating whether to compute ridge benchmark
-#'   R-squared values for the source, predicted, and true signatures.
-#' @param pb_col Column in `colData(se)` containing perturbation labels
-#'   for ridge benchmarking.
-#' @param control_value Label in `pb_col` indicating control samples
-#'   (e.g. `"DMSO"` or `"non-targeting"`).
 #' @param source A character string describing the starting biological context.
 #' @param target A character string describing the target biological context.
 #' @param BPPARAM A BiocParallelParam object for parallel processing. If NULL, uses SerialParam.
@@ -39,10 +32,6 @@ sig_eval_table <- function(
   split_file = NULL,
   split_pb_col = "drug",
   split_type = NULL,
-  se = NULL,
-  ridge_benchmark = FALSE,
-  pb_col = NULL,
-  control_value = NULL,
   source = "source_context",
   target = "target_context",
   BPPARAM = NULL
@@ -64,17 +53,6 @@ sig_eval_table <- function(
     stop(
       "'split_file', 'split_pb_col', and 'split_type' are only supported when 'splits = TRUE'."
     )
-  }
-
-  if (ridge_benchmark) {
-    if (is.null(se) || is.null(pb_col) || is.null(control_value)) {
-      stop(
-        "'se', 'pb_col', and 'control_value' must be supplied when 'ridge_benchmark = TRUE'."
-      )
-    }
-    if (!is(se, "SummarizedExperiment")) {
-      stop("'se' must be a SummarizedExperiment when 'ridge_benchmark = TRUE'.")
-    }
   }
 
   load_split_table <- function(split_file, split_pb_col) {
@@ -103,8 +81,8 @@ sig_eval_table <- function(
     split_tbl
   }
 
-  empty_eval_df <- function(source, target, ridge_benchmark = FALSE) {
-    eval_df <- data.frame(
+  empty_eval_df <- function(source, target) {
+    data.frame(
       source = character(0),
       target = character(0),
       displaced = numeric(0),
@@ -120,14 +98,6 @@ sig_eval_table <- function(
       leadingEdge = I(list()),
       stringsAsFactors = FALSE
     )
-
-    if (ridge_benchmark) {
-      eval_df$source_r2 <- numeric(0)
-      eval_df$pred_r2 <- numeric(0)
-      eval_df$true_r2 <- numeric(0)
-    }
-
-    eval_df
   }
 
   filter_eval_inputs <- function(
@@ -198,17 +168,12 @@ sig_eval_table <- function(
     true_sigs,
     source,
     target,
-    BPPARAM,
-    se = NULL,
-    ridge_benchmark = FALSE,
-    pb_col = NULL,
-    control_value = NULL
+    BPPARAM
   ) {
     if (length(pred_sigs) == 0) {
       return(empty_eval_df(
         source = source,
-        target = target,
-        ridge_benchmark = ridge_benchmark
+        target = target
       ))
     }
 
@@ -254,27 +219,6 @@ sig_eval_table <- function(
       stringsAsFactors = FALSE
     )
 
-    if (ridge_benchmark) {
-      benchmark_fn <- function(geneset_list) {
-        vapply(
-          names(geneset_list),
-          function(pb_name) {
-            ridge_benchmark_r2(
-              se = se,
-              geneset = geneset_list[[pb_name]],
-              pb_col = pb_col,
-              perturbation = pb_name,
-              control_value = control_value
-            )
-          },
-          numeric(1)
-        )
-      }
-      eval_df$source_r2 <- benchmark_fn(source_sigs)
-      eval_df$pred_r2 <- benchmark_fn(pred_sigs)
-      eval_df$true_r2 <- benchmark_fn(dest_short_sigs)
-    }
-
     return(eval_df)
   }
 
@@ -318,11 +262,7 @@ sig_eval_table <- function(
         true_sigs = filtered_inputs$true_sigs,
         source = source,
         target = target,
-        BPPARAM = BPPARAM,
-        se = se,
-        ridge_benchmark = ridge_benchmark,
-        pb_col = pb_col,
-        control_value = control_value
+        BPPARAM = BPPARAM
       )
       split_value <- if (grepl("^split_[0-9]+$", split_label)) {
         as.integer(sub("^split_", "", split_label))
@@ -345,11 +285,7 @@ sig_eval_table <- function(
       true_sigs = filtered_inputs$true_sigs,
       source = source,
       target = target,
-      BPPARAM = BPPARAM,
-      se = se,
-      ridge_benchmark = ridge_benchmark,
-      pb_col = pb_col,
-      control_value = control_value
+      BPPARAM = BPPARAM
     )
   }
 

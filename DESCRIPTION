@@ -4,7 +4,7 @@ Version: 0.0.1
 Authors@R: 
     person("Andrew", "Chen", , "andrewdr@bu.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-8508-0227"))
-Description: Provides metrics to evaluate the effectiveness of signature recontextualization methods based on curated datasets of perturbational signatures: Perturb-Seq, DrugMatrix, and SciPlex. Additionally, provides two baseline methods of signature recontextualization based on network propagation and projection-based scoring with GSVA or AUCell.
+Description: Provides metrics to evaluate the effectiveness of signature recontextualization methods based on curated datasets of perturbational signatures: Perturb-Seq, DrugMatrix, and SciPlex. Additionally, provides two baseline methods of signature recontextualization based on network propagation and projection-based scoring with GSVA or eigengenes.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -16,14 +16,11 @@ Depends:
 LazyData: true
 LazyDataCompression: gzip
 Imports:
-    AUCell,
     Biobase,
     BiocParallel,
     fgsea,
-    GSVA,
     R6,
     SummarizedExperiment,
-    WGCNA,
     doParallel,
     dplyr,
     ggplot2,
@@ -32,12 +29,12 @@ Imports:
     purrr,
     tibble,
     Matrix,
-    MDMR,
-    glmnet,
-    Seurat,
     parallel,
     abind
 Suggests:
     DESeq2,
+    GSVA,
+    Seurat,
+    WGCNA,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

@@ -7,19 +7,17 @@
 #' @param se A SummarizedExperiment object containing gene expression data.
 #' @param sigs A list of gene signatures, where each element is a character vector of gene names.
 #' @param score Scoring method used to score samples against input signatures.
-#'   Either `"gsva"`, `"AUCell"`, or `"eigen"`. Default is `"gsva"`.
+#'   Either `"gsva"` or `"eigen"`. Default is `"gsva"`.
 #'
 #' @return A list of reconstructed gene signatures, with the same structure as the input `sigs`.
 #'
 #' @details
 #' The function performs the following steps:
-#' 1. Calculates projection scores for the input signatures with GSVA, AUCell, or eigengenes.
+#' 1. Calculates projection scores for the input signatures with GSVA or eigengenes.
 #' 2. Computes the correlation between gene expression and projection scores.
 #' 3. Ranks genes based on their correlation with each signature's projection scores.
 #' 4. Selects the top-ranking genes to form new signatures of the same length as the original ones.
 #'
-#' @importFrom AUCell AUCell_buildRankings AUCell_calcAUC getAUC
-#' @importFrom GSVA gsva gsvaParam
 #' @importFrom stats cor
 #' @importFrom tibble as_tibble
 #' @importFrom dplyr arrange slice pull desc
@@ -27,13 +25,16 @@
 #' @export
 projectCor <- function(se,
                        sigs,
-                       score = c("gsva", "AUCell", "eigen")) {
+                       score = c("gsva", "eigen")) {
   score <- match.arg(score)
   stopifnot(is(se, "SummarizedExperiment"))
 
   expr_mat <- SummarizedExperiment::assay(se)
 
   if (score == "gsva") {
+    if (!requireNamespace("GSVA", quietly = TRUE)) {
+      stop("The 'GSVA' package is required for score = 'gsva'. Install it with BiocManager::install('GSVA'), or use score = 'eigen' instead.")
+    }
     score_param <- GSVA::gsvaParam(se, sigs, maxDiff = TRUE)
     score_res <- GSVA::gsva(score_param, verbose = FALSE)
     if (is(score_res, "SummarizedExperiment")) {
@@ -41,18 +42,6 @@ projectCor <- function(se,
     } else {
       score_mat <- score_res
     }
-  } else if (score == "AUCell") {
-    if (is(expr_mat, "sparseMatrix")) {
-      expr_mat <- as.matrix(expr_mat)
-    }
-
-    rankings <- AUCell::AUCell_buildRankings(exprMat = expr_mat,
-                                             plotStats = FALSE,
-                                             verbose = FALSE)
-    auc <- AUCell::AUCell_calcAUC(geneSets = sigs,
-                                  rankings = rankings,
-                                  verbose = FALSE)
-    score_mat <- AUCell::getAUC(auc)
   } else {
     if (is(expr_mat, "sparseMatrix")) {
       expr_mat <- as.matrix(expr_mat)
@@ -482,7 +471,7 @@ recontextualize <- function(method = c("networkProp", "projectCor", "mean"),
                             se = NULL,
                             seeds = NULL,
                             sigs = NULL,
-                            score = c("gsva", "AUCell", "eigen"),
+                            score = c("gsva", "eigen"),
                             sig = c("rwr", "corr"),
                             avg_p = FALSE,
                             avg_p_vals = c(1e-4, 1e-1),
