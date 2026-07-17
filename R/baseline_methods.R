@@ -671,6 +671,7 @@ seed_matrix <- function(ig,
 #' @param epsilon Exploration factor
 #' @param normalize Normalization strategy
 #' @return (n_gene, n_seeds) matrix of stationary probability values
+#' @noRd
 rwr_mat <- function(ig,
                     seeds,
                     restart = 0.75,
@@ -804,6 +805,7 @@ annotate_prob_vec <- function(prob_vec, seeds) {
 #' @param restart Numeric, Probability of restarting at the seed nodes
 #' @param normalize Normalization strategy
 #' @return List of Annotated Dataframes. Each Dataframe has columns for gene label, probability value, and seed status.
+#' @noRd
 rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "laplacian", "none")) {
 
   normalize <- match.arg(normalize)

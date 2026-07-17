@@ -960,6 +960,7 @@ common_signature_filter <- function(graphs, signatures) {
 #' @importFrom dplyr filter
 #' @importFrom magrittr %>%
 #' @importFrom dplyr pull
+#' @noRd
 get_signature <- function(rwr_df, sig_label, node_label, cancer_label) {
   # rwr_df: Dataframe of stationary probabilities with cancer, signature, and node annotations
   # Return: List of node labels that are significant after doing signature propagation on cancer_label graph with sig_label sig

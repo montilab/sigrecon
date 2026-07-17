@@ -94,6 +94,7 @@ eset_stratified_sample <- function(eset, stratify_column, sample_id_column, p=0.
 #' @note
 #' This function requires the eset_stratified_sample and wgcna.adj functions to be available.
 #' Currently, only the WGCNA method is fully implemented.
+#' @noRd
 split_learn_save <- function(eset,
                              stratify_col,
                              sample_id_col,
