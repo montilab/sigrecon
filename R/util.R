@@ -266,15 +266,15 @@ sig_filter_fn <- function(diff_table,
 
     # Get all genes for this perturbation, ordered by score
     full_sig <- diff_table %>%
-      dplyr::filter(!!sym(pert_col) == !!pb) %>%
+      dplyr::filter(!!dplyr::sym(pert_col) == !!pb) %>%
       dplyr::arrange(desc(logFC_adjpval)) %>%
       dplyr::pull(geneid_col)
 
     # Get significant upregulated genes
     sig_sig <- diff_table %>%
-      dplyr::filter(!!sym(pert_col) == !!pb) %>%
-      dplyr::filter(!!sym(log2fc_col) > 0) %>%
-      dplyr::filter(!!sym(pval_col) <= alpha) %>%
+      dplyr::filter(!!dplyr::sym(pert_col) == !!pb) %>%
+      dplyr::filter(!!dplyr::sym(log2fc_col) > 0) %>%
+      dplyr::filter(!!dplyr::sym(pval_col) <= alpha) %>%
       dplyr::arrange(desc(logFC_adjpval)) %>%
       dplyr::slice(1:limit) %>%
       dplyr::pull(geneid_col)
