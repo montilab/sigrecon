@@ -71,4 +71,70 @@ tahoe_nci_h23 <- get_dataset("tahoe.nci_h23")
 
 ## Bring your own signature or expression data
 
-`projectCor()` and `network_sig()` work on any `SummarizedExperiment` and any named list of gene-symbol/ID vectors, not just the bundled demo data — the demo objects above are just a fast way to see the functions run. `sig_filter_fn()` converts a differential expression results table (e.g. from `DESeq2`, `limma`, or Seurat's `FindMarkers()`) into the signature list format used throughout this package.
+`projectCor()` and `network_sig()` work on any expression data and any gene signature, not just the bundled demo data — the demo objects above are just a fast way to see the functions run. This section covers what shape your own data needs to be in.
+
+### Signature format
+
+Both functions expect a **named list of character vectors of gene IDs** — one element per perturbation/condition, e.g.:
+
+```r
+my_sigs <- list(
+  drugA = c("GENE1", "GENE7", "GENE12", ...),
+  drugB = c("GENE3", "GENE9", ...)
+)
+```
+
+If you're starting from a differential expression results table instead (e.g. output from `DESeq2::results()`, `limma::topTable()`, or Seurat's `FindMarkers()`), `sig_filter_fn()` converts it into this format, selecting the top upregulated genes per perturbation:
+
+```r
+# diff_table: one row per gene per perturbation, with a perturbation-label
+# column, a log2 fold-change column, a p-value column, and a gene-ID column.
+# Column names below match sig_filter_fn()'s defaults ("product",
+# "avg_log2FC", "p_val_adj", "ensembl_id"); pass pert_col/log2fc_col/
+# pval_col/geneid_col to match your own table's column names instead
+# (Seurat::FindMarkers() output already uses "avg_log2FC"/"p_val_adj").
+my_sigs <- sig_filter_fn(
+  diff_table,
+  perts = c("drugA", "drugB"),
+  limit = 100
+)
+
+# my_sigs$drugA$up      -- top 100 significantly upregulated genes
+# my_sigs$drugA$up_full -- all genes, ranked by log2FC * -log10(padj)
+```
+
+`sig_eval_table()`'s `true_sigs` argument expects this full `list(up = ..., up_full = ...)` shape; `projectCor()`/`network_sig()`'s `sigs`/`seeds` arguments just want the plain gene vectors (`lapply(my_sigs, function(x) x$up)`).
+
+### Expression data format
+
+| Function | Expected input | Orientation | Notes |
+|---|---|---|---|
+| `projectCor(se, sigs, score)` | `SummarizedExperiment` | genes as rows, samples as columns (standard Bioconductor convention) | `stopifnot(is(se, "SummarizedExperiment"))` — a matrix alone will error |
+| `wgcna.adj(mat, ...)` (feeds `network_sig()`) | plain numeric matrix | **samples as rows, genes as columns** (transposed from `SummarizedExperiment` convention) | |
+
+In both cases, **row/column gene identifiers must be in the same namespace as your signature's gene IDs** (e.g. both Ensembl IDs, or both HGNC symbols) — `projectCor()`/`network_sig()` match genes by exact string, so a namespace mismatch silently produces empty or near-empty results rather than an error.
+
+A couple of practical gotchas learned from building this package's own demo datasets:
+- **Normalize raw counts first.** `wgcna.adj()`'s correlation-based network construction behaves poorly on raw counts (skewed distributions, genes with zero variance producing `NA` correlations that make `igraph::graph_from_adjacency_matrix()` error outright). Log2-CPM (or similar) normalization first avoids this. If your data is already normalized/log-transformed (e.g. microarray intensities), skip this step.
+- **Drop zero-variance genes** before building a network, for the same reason: `apply(mat, 2, var) > 0` (recall `mat` is samples × genes here).
+- **Starting from a `Seurat` object?** Extract expression and wrap it as a `SummarizedExperiment`:
+  ```r
+  library(Seurat)
+  library(SummarizedExperiment)
+
+  expr_mat <- as.matrix(GetAssayData(seurat_obj, layer = "data"))  # normalized, genes x samples
+  my_se <- SummarizedExperiment(
+    assays = list(logcounts = expr_mat),
+    colData = DataFrame(seurat_obj@meta.data)
+  )
+  ```
+
+### Putting it together
+
+```r
+recon_projectcor <- projectCor(my_se, lapply(my_sigs, function(x) x$up), score = "gsva")
+
+my_mat <- t(SummarizedExperiment::assay(my_se))
+my_network <- wgcna.adj(my_mat, cor.type = "signed hybrid", diag_zero = TRUE, igraph = TRUE)
+recon_netprop <- network_sig(my_network, seeds = lapply(my_sigs, function(x) x$up), sig = "rwr")
+```
