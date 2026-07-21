@@ -1,0 +1,75 @@
+url: https://montilab.github.io/sigrecon/
+template:
+  bootstrap: 5
+
+reference:
+- title: Recontextualization methods
+  desc: >
+    Baseline methods that take a source-context signature and reconstruct
+    it in a target context.
+  contents:
+  - projectCor
+  - network_sig
+  - recontextualize
+
+- title: Network utilities
+  desc: >
+    Building and propagating across gene co-expression networks.
+  contents:
+  - wgcna.adj
+  - random_walk
+
+- title: Benchmarking & evaluation
+  desc: >
+    Evaluating a recontextualized signature against source/true signatures.
+  contents:
+  - sig_eval_table
+  - paired_eval_table
+  - sig_filter_fn
+  - recon_eval_df
+  - jaccard
+  - jaccard_matrix
+  - v.jaccard
+  - v.fgsea
+  - fgsea_wrapper
+  - fishers_meta_p
+  - count_displaced_genes
+  - bin_presence
+
+- title: Datasets
+  desc: >
+    Bundled demo data and on-demand access to the full-size datasets.
+  contents:
+  - demo_datasets
+  - get_dataset
+  - list_datasets
+
+- title: Utilities
+  contents:
+  - make_bpparam
+
+- title: Internal
+  desc: >
+    Unexported helpers, documented for maintainers but not part of the
+    package's public API.
+  contents:
+  - all_dists_nodesets
+  - annotate_prob_vec
+  - binarize_matrices
+  - col_normalize
+  - common_mad_genes
+  - common_signature_filter
+  - consensus_net
+  - correlated_sigs
+  - diag_zero
+  - extract_sig_mat
+  - ggempty
+  - ggeplot
+  - largest_connected_subgraph
+  - pvector
+  - rank.var.eset
+  - seed_matrix
+  - seurat_common_var_genes
+  - sft.check
+  - v.correlated_sigs
+  - wgcna.power

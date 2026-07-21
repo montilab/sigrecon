@@ -9,7 +9,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-URL: https://github.com/montilab/sigrecon
+URL: https://github.com/montilab/sigrecon, https://montilab.github.io/sigrecon/
 BugReports: https://github.com/montilab/sigrecon/issues
 Depends: 
     R (>= 3.5)
