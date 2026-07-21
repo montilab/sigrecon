@@ -215,7 +215,7 @@ sig_eval_table <- function(
       padj = fgsea_results$padj,
       log2err = fgsea_results$log2err,
       size = fgsea_results$size,
-      leadingEdge <- fgsea_results$leadingEdge,
+      leadingEdge = I(fgsea_results$leadingEdge),
       stringsAsFactors = FALSE
     )
 

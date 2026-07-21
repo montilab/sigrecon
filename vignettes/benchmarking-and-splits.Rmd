@@ -1,0 +1,188 @@
+---
+title: "Benchmarking Design: Splits and Evaluation Metrics"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Benchmarking Design: Splits and Evaluation Metrics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(sigrecon)
+```
+
+The [Getting Started](getting-started.html) vignette runs `sig_eval_table()`
+once and glances at a few of its output columns. This vignette covers the
+evaluation design in full: what every output column means, the
+ctrl/10th/90th split design used to benchmark methods at varying amounts of
+target-context information, and how to compare against a no-change baseline
+with `paired_eval_table()`.
+
+## `sig_eval_table()` output columns
+
+```{r eval-basic}
+recon <- projectCor(demo_sciplex_se, demo_sciplex_sigs, score = "gsva")
+
+eval_df <- sig_eval_table(
+  source_sigs = demo_sciplex_sigs,
+  pred_sigs   = recon,
+  true_sigs   = demo_sciplex_true_sigs,
+  source      = "sciplex_k562",
+  target      = "sciplex_a549"
+)
+
+str(eval_df, max.level = 1)
+```
+
+Each row is one perturbation. Columns:
+
+| Column | Meaning |
+|---|---|
+| `source`, `target` | Labels you passed in, identifying the source/target contexts |
+| `gene` | The perturbation name (row identifier) |
+| `displaced`, `kept` | How many source-signature genes were replaced vs. retained by recontextualization. `kept / (kept + displaced)` is the fraction of the source signature recontextualization left unchanged. |
+| `jacc` | Jaccard overlap between the recontextualized signature and the true target-context signature's `up` genes |
+| `ES`, `NES` | fgsea enrichment score / normalized enrichment score of the recontextualized signature against the true signature's full ranked gene list (`up_full`) -- how concentrated the recontextualized genes are near the top of the true ranking |
+| `pval`, `padj` | Significance of that enrichment (raw and BH-adjusted) |
+| `log2err`, `size` | fgsea's estimated log2 error on the p-value, and the number of recontextualized genes that overlapped the ranked list at all |
+| `leadingEdge` | The specific genes driving the enrichment signal (a list-column -- one character vector per row) |
+
+Higher `jacc` and `NES` mean the recontextualized signature more closely
+resembles the true target-context signature -- i.e. better
+recontextualization.
+
+```{r leading-edge}
+# leadingEdge is a list-column: one entry per row
+eval_df$leadingEdge[[1]]
+```
+
+## The ctrl / 10th / 90th split design
+
+A recontextualization method that's simply handed the true target-context
+signature as extra input isn't really being tested -- it's cheating. The
+package's benchmarking study evaluates methods under three conditions that
+control how much target-context information is available:
+
+- **`ctrl`**: none of the target perturbations' information is available to
+  the method beyond the source signature itself (what every example so far
+  in this vignette series has done).
+- **`ctrl_10th`**: the method is allowed 1/10th of the target perturbations
+  as reference (e.g. to tune a network or model), then evaluated on the
+  *other* 9/10th -- the harder, held-out majority.
+- **`ctrl_90th`**: the reverse -- allowed 9/10th, evaluated on the remaining
+  1/10th.
+
+In the real analysis scripts, which perturbations fall in which split is
+decided once and saved to a `drug_splits.csv`/`pb_splits.csv` file: one
+column per split (`split_1`, `split_2`, ...), each a logical vector marking
+a fixed ~10%/90% partition of perturbations, aligned to a
+perturbation-label column. The same partition serves both regimes by
+flipping which side is the reference and which is evaluated:
+`split_type = "10th"` uses the `TRUE` (small) side as reference and
+evaluates the `FALSE` (majority) side; `split_type = "90th"` uses the
+`FALSE` side as reference and evaluates the `TRUE` side.
+`sig_eval_table(splits = TRUE, split_file = ..., split_pb_col = ...,
+split_type = c("10th", "90th"))` reads that file directly and filters which
+perturbations get evaluated for you.
+
+### A worked example
+
+`splits = TRUE` expects `pred_sigs` to be a *named list of splits*, each
+element itself a signature list, with names matching the split file's
+column names. Building a small one here from the demo signatures (reusing
+the same predictions per split for simplicity -- in a real study, each
+split's predictions come from a method run only on that split's reference
+perturbations):
+
+```{r build-splits}
+set.seed(1)
+drugs <- names(demo_sciplex_sigs)
+
+split_tbl <- data.frame(
+  drug     = drugs,
+  split_1  = sample(c(TRUE, FALSE), length(drugs), replace = TRUE, prob = c(0.1, 0.9)),
+  split_2  = sample(c(TRUE, FALSE), length(drugs), replace = TRUE, prob = c(0.1, 0.9))
+)
+table(split_tbl$split_1)
+
+split_file <- tempfile(fileext = ".csv")
+write.csv(split_tbl, split_file, row.names = FALSE)
+
+pred_sigs_splits <- list(split_1 = recon, split_2 = recon)
+```
+
+```{r eval-10th}
+eval_10th <- sig_eval_table(
+  source_sigs  = demo_sciplex_sigs,
+  pred_sigs    = pred_sigs_splits,
+  true_sigs    = demo_sciplex_true_sigs,
+  source       = "sciplex_k562",
+  target       = "sciplex_a549",
+  splits       = TRUE,
+  split_file   = split_file,
+  split_pb_col = "drug",
+  split_type   = "10th"
+)
+
+# One extra "split" column identifying which split each row came from
+table(eval_10th$split)
+nrow(eval_10th)
+```
+
+`split_type = "10th"` evaluated only the perturbations where `split_1`/
+`split_2` was `FALSE` (the withheld 9/10ths) -- fewer rows than the 23
+perturbations in the full `demo_sciplex_sigs`, and split across the two
+`split_1`/`split_2` conditions.
+
+## Comparing against a no-change baseline
+
+The natural baseline for "did recontextualization help" is doing nothing --
+using the unmodified source signature as the prediction. `sig_eval_table()`
+computes this the same way as any other prediction, just passing the source
+signatures as `pred_sigs`:
+
+```{r no-change}
+no_change_df <- sig_eval_table(
+  source_sigs = demo_sciplex_sigs,
+  pred_sigs   = demo_sciplex_sigs,
+  true_sigs   = demo_sciplex_true_sigs,
+  source      = "sciplex_k562",
+  target      = "sciplex_a549"
+)
+```
+
+`paired_eval_table()` formalizes the no-change-vs-recontextualized
+comparison: it joins the two evaluation tables on `source`/`gene`, computes
+`kept_alpha`/`NES_delta`/`Jacc_delta`, and prints a paired significance
+summary (median performance, then a paired Wilcoxon test per source
+combined across perturbations via Fisher's method). It takes the no-change
+table as a **file path**, not a data frame in memory, so save it first:
+
+```{r paired-eval}
+no_change_path <- tempfile(fileext = ".rds")
+saveRDS(no_change_df, no_change_path)
+
+paired_df <- paired_eval_table(eval_df, no_change_path)
+head(paired_df[, c("gene", "jacc_FALSE", "jacc_TRUE", "NES_FALSE", "NES_TRUE", "Jacc_delta", "NES_delta")])
+```
+
+`_FALSE` columns are the no-change baseline, `_TRUE` columns are the
+recontextualized prediction (matching `sig_eval_table()`'s internal
+`splits`/`filter_eval_inputs` naming convention, not a literal boolean
+value) -- `Jacc_delta`/`NES_delta` being positive means recontextualization
+improved on the baseline for that perturbation.
+
+## Next steps
+
+- The [Getting Started](getting-started.html) vignette for the full
+  recontextualization workflow
+- The [Network Propagation in Depth](network-propagation-details.html)
+  vignette for `network_sig()`'s options
+- `?sig_eval_table`, `?paired_eval_table` for full parameter references
