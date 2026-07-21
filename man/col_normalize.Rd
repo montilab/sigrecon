@@ -15,3 +15,4 @@ A matrix with columns normalized by their sums
 \description{
 Normalize Columns of a Matrix
 }
+\keyword{internal}

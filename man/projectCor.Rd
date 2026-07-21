@@ -2,7 +2,7 @@
 % Please edit documentation in R/baseline_methods.R
 \name{projectCor}
 \alias{projectCor}
-\title{Reconstruct Gene Signatures Using Projection Scores}
+\title{Projection based Recontextualization}
 \usage{
 projectCor(se, sigs, score = c("gsva", "eigen"))
 }

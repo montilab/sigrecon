@@ -1,4 +1,4 @@
-#' @title Evaluate Signature Prediction
+#' @title Evaluating recontextualization methods
 #'
 #' @description This function calculates various evaluation metrics for predicted gene signatures
 #' against true (ground truth) gene signatures, given a source signature as input.
@@ -292,7 +292,7 @@ sig_eval_table <- function(
   return(eval_df)
 }
 
-#' Pair a Recontextualization Evaluation Table With a No-Change Baseline
+#' @title Evaluate recontextualization methods relative to no-change baseline
 #'
 #' @description
 #' Merges a `sig_eval_table()` result with a saved no-change evaluation table,
@@ -325,7 +325,10 @@ paired_eval_table <- function(combined_df, no_change_eval_path) {
   }
 
   required_no_change_cols <- c("source", "gene", "NES", "jacc")
-  missing_no_change_cols <- setdiff(required_no_change_cols, names(combined_no_recon_df))
+  missing_no_change_cols <- setdiff(
+    required_no_change_cols,
+    names(combined_no_recon_df)
+  )
   if (length(missing_no_change_cols) > 0) {
     stop(
       "No-change evaluation table is missing columns: ",
@@ -333,7 +336,14 @@ paired_eval_table <- function(combined_df, no_change_eval_path) {
     )
   }
 
-  required_combined_cols <- c("source", "gene", "NES", "jacc", "kept", "displaced")
+  required_combined_cols <- c(
+    "source",
+    "gene",
+    "NES",
+    "jacc",
+    "kept",
+    "displaced"
+  )
   missing_combined_cols <- setdiff(required_combined_cols, names(combined_df))
   if (length(missing_combined_cols) > 0) {
     stop(
@@ -401,7 +411,7 @@ paired_eval_table <- function(combined_df, no_change_eval_path) {
   eval_table
 }
 
-#' Evaluate recontextualized signatures
+#' Network Propagation Helper
 #'
 #' @param ig igraph
 #' @param seed_name name of list of genesets to be used to label dataframe
@@ -421,7 +431,7 @@ paired_eval_table <- function(combined_df, no_change_eval_path) {
 #' @param save_path file path to save recontextualized signatures
 #' @param limit Number of genes to keep in the output, or a vector of lengths
 #'
-#' @export
+#' @keywords internal
 recon_eval_df <- function(
   ig,
   seed_name,

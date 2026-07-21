@@ -1,4 +1,4 @@
-#' Reconstruct Gene Signatures Using Projection Scores
+#' @title Projection based Recontextualization
 #'
 #' @description
 #' This function reconstructs gene signatures based on their correlation with
@@ -23,9 +23,7 @@
 #' @importFrom dplyr arrange slice pull desc
 #'
 #' @export
-projectCor <- function(se,
-                       sigs,
-                       score = c("gsva", "eigen")) {
+projectCor <- function(se, sigs, score = c("gsva", "eigen")) {
   score <- match.arg(score)
   stopifnot(is(se, "SummarizedExperiment"))
 
@@ -33,7 +31,9 @@ projectCor <- function(se,
 
   if (score == "gsva") {
     if (!requireNamespace("GSVA", quietly = TRUE)) {
-      stop("The 'GSVA' package is required for score = 'gsva'. Install it with BiocManager::install('GSVA'), or use score = 'eigen' instead.")
+      stop(
+        "The 'GSVA' package is required for score = 'gsva'. Install it with BiocManager::install('GSVA'), or use score = 'eigen' instead."
+      )
     }
     score_param <- GSVA::gsvaParam(se, sigs, maxDiff = TRUE)
     score_res <- GSVA::gsva(score_param, verbose = FALSE)
@@ -53,49 +53,57 @@ projectCor <- function(se,
     }
 
     sig_names <- names(sigs)
-    eig_scores <- setNames(lapply(sig_names, function(sig_name) {
-      genes <- intersect(sigs[[sig_name]], gene_names)
-      if (length(genes) == 0) {
-        message(sprintf(
-          "Skipping signature '%s' because no genes were found in the expression assay.",
-          sig_name
-        ))
-        return(NULL)
-      }
+    eig_scores <- setNames(
+      lapply(sig_names, function(sig_name) {
+        genes <- intersect(sigs[[sig_name]], gene_names)
+        if (length(genes) == 0) {
+          message(sprintf(
+            "Skipping signature '%s' because no genes were found in the expression assay.",
+            sig_name
+          ))
+          return(NULL)
+        }
 
-      sig_expr <- expr_mat[genes, , drop = FALSE]
-      gene_sds <- apply(sig_expr, 1, stats::sd)
-      keep <- !is.na(gene_sds) & gene_sds > 0
-      sig_expr <- sig_expr[keep, , drop = FALSE]
+        sig_expr <- expr_mat[genes, , drop = FALSE]
+        gene_sds <- apply(sig_expr, 1, stats::sd)
+        keep <- !is.na(gene_sds) & gene_sds > 0
+        sig_expr <- sig_expr[keep, , drop = FALSE]
 
-      if (nrow(sig_expr) == 0) {
-        stop(sprintf("All genes in signature '%s' have zero variance.", sig_name))
-      }
+        if (nrow(sig_expr) == 0) {
+          stop(sprintf(
+            "All genes in signature '%s' have zero variance.",
+            sig_name
+          ))
+        }
 
-      sig_expr <- t(scale(t(sig_expr), center = TRUE, scale = TRUE))
+        sig_expr <- t(scale(t(sig_expr), center = TRUE, scale = TRUE))
 
-      eigengene <- if (nrow(sig_expr) == 1) {
-        as.numeric(sig_expr[1, ])
-      } else {
-        pca <- stats::prcomp(t(sig_expr), center = FALSE, scale. = FALSE)
-        as.numeric(pca$x[, 1])
-      }
+        eigengene <- if (nrow(sig_expr) == 1) {
+          as.numeric(sig_expr[1, ])
+        } else {
+          pca <- stats::prcomp(t(sig_expr), center = FALSE, scale. = FALSE)
+          as.numeric(pca$x[, 1])
+        }
 
-      # Align the PC direction with the average standardized module signal.
-      avg_signal <- colMeans(sig_expr)
-      align_cor <- stats::cor(eigengene, avg_signal)
-      if (!is.na(align_cor) && align_cor < 0) {
-        eigengene <- -eigengene
-      }
+        # Align the PC direction with the average standardized module signal.
+        avg_signal <- colMeans(sig_expr)
+        align_cor <- stats::cor(eigengene, avg_signal)
+        if (!is.na(align_cor) && align_cor < 0) {
+          eigengene <- -eigengene
+        }
 
-      eigengene
-    }), sig_names)
+        eigengene
+      }),
+      sig_names
+    )
 
     keep_scores <- !vapply(eig_scores, is.null, logical(1))
     eig_scores <- eig_scores[keep_scores]
 
     if (length(eig_scores) == 0) {
-      stop("No signatures had genes present in the expression assay for eigengene scoring.")
+      stop(
+        "No signatures had genes present in the expression assay for eigengene scoring."
+      )
     }
 
     score_mat <- do.call(rbind, eig_scores)
@@ -124,7 +132,7 @@ projectCor <- function(se,
 
   results <- tibble::as_tibble(corr_mat, rownames = "gene")
   new_sigs <- list()
-  for(sig_name in colnames(proj_scores)) {
+  for (sig_name in colnames(proj_scores)) {
     # Obtain rank of genes most correlated to the projection scores
     results$rank <- rank(dplyr::desc(results[[sig_name]]))
 
@@ -138,8 +146,7 @@ projectCor <- function(se,
   return(new_sigs)
 }
 
-gsva_recon <- function(se,
-                       sigs) {
+gsva_recon <- function(se, sigs) {
   projectCor(se = se, sigs = sigs, score = "gsva")
 }
 
@@ -153,7 +160,10 @@ gsva_recon <- function(se,
   }
 
   if (!is.list(x)) {
-    stop(sprintf("'%s' must be a named list or a single character string.", arg_name))
+    stop(sprintf(
+      "'%s' must be a named list or a single character string.",
+      arg_name
+    ))
   }
 
   if (is.null(names(x)) || any(names(x) == "")) {
@@ -171,9 +181,7 @@ gsva_recon <- function(se,
   fallback
 }
 
-.resolve_recontext_limits <- function(items,
-                                      limit = NULL,
-                                      default = 30) {
+.resolve_recontext_limits <- function(items, limit = NULL, default = 30) {
   item_names <- names(items)
   n_items <- length(items)
 
@@ -201,25 +209,29 @@ gsva_recon <- function(se,
   }
 
   if (length(limit) != n_items) {
-    stop("'limit' must have length 1, match the number of signatures, or be a named vector.")
+    stop(
+      "'limit' must have length 1, match the number of signatures, or be a named vector."
+    )
   }
 
   names(limit) <- item_names
   limit
 }
 
-.mean_recontextualize <- function(se,
-                                  sigs = NULL,
-                                  limit = NULL,
-                                  perturbation_col,
-                                  condition_col,
-                                  perturbed_label = "Perturbed",
-                                  control_label = "Control",
-                                  design_vars = NULL,
-                                  assay_name = NULL,
-                                  alpha = 0.05,
-                                  min_count = NULL,
-                                  min_samples = 1) {
+.mean_recontextualize <- function(
+  se,
+  sigs = NULL,
+  limit = NULL,
+  perturbation_col,
+  condition_col,
+  perturbed_label = "Perturbed",
+  control_label = "Control",
+  design_vars = NULL,
+  assay_name = NULL,
+  alpha = 0.05,
+  min_count = NULL,
+  min_samples = 1
+) {
   stopifnot(is(se, "SummarizedExperiment"))
 
   if (!requireNamespace("DESeq2", quietly = TRUE)) {
@@ -231,7 +243,10 @@ gsva_recon <- function(se,
     assay_name <- assay_names[[1]]
   }
 
-  if (is.null(assay_name) || !assay_name %in% names(SummarizedExperiment::assays(se))) {
+  if (
+    is.null(assay_name) ||
+      !assay_name %in% names(SummarizedExperiment::assays(se))
+  ) {
     stop("'assay_name' must identify an assay present in 'se'.")
   }
 
@@ -263,15 +278,23 @@ gsva_recon <- function(se,
     ))
   }
 
-  controls <- rownames(coldata)[as.character(coldata[[condition_col]]) == control_label]
+  controls <- rownames(coldata)[
+    as.character(coldata[[condition_col]]) == control_label
+  ]
   if (length(controls) == 0) {
-    stop(sprintf("No control samples found where '%s' == '%s'.", condition_col, control_label))
+    stop(sprintf(
+      "No control samples found where '%s' == '%s'.",
+      condition_col,
+      control_label
+    ))
   }
 
   sigs <- .normalize_recontext_input(sigs, "sigs")
   if (is.null(sigs)) {
     pert_names <- unique(as.character(
-      coldata[[perturbation_col]][as.character(coldata[[condition_col]]) == perturbed_label]
+      coldata[[perturbation_col]][
+        as.character(coldata[[condition_col]]) == perturbed_label
+      ]
     ))
     pert_names <- pert_names[!is.na(pert_names)]
     sigs <- stats::setNames(vector("list", length(pert_names)), pert_names)
@@ -312,7 +335,11 @@ gsva_recon <- function(se,
     }
 
     subset_meta$.recontext_condition <- factor(
-      ifelse(rownames(subset_meta) %in% perturbed_samples, perturbed_label, control_label),
+      ifelse(
+        rownames(subset_meta) %in% perturbed_samples,
+        perturbed_label,
+        control_label
+      ),
       levels = c(control_label, perturbed_label)
     )
 
@@ -349,16 +376,18 @@ gsva_recon <- function(se,
   mean_sigs
 }
 
-.build_networkprop_graph <- function(se,
-                                     assay_name = NULL,
-                                     nfeatures = NULL,
-                                     min.sft = 0.85,
-                                     beta = NULL,
-                                     cores = 1,
-                                     cor.fn = c("bicor", "cor"),
-                                     cor.type = c("unsigned", "signed hybrid", "signed"),
-                                     powers = c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
-                                     diag_zero = TRUE) {
+.build_networkprop_graph <- function(
+  se,
+  assay_name = NULL,
+  nfeatures = NULL,
+  min.sft = 0.85,
+  beta = NULL,
+  cores = 1,
+  cor.fn = c("bicor", "cor"),
+  cor.type = c("unsigned", "signed hybrid", "signed"),
+  powers = c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
+  diag_zero = TRUE
+) {
   stopifnot(is(se, "SummarizedExperiment"))
 
   if (is.null(assay_name)) {
@@ -366,7 +395,10 @@ gsva_recon <- function(se,
     assay_name <- assay_names[[1]]
   }
 
-  if (is.null(assay_name) || !assay_name %in% names(SummarizedExperiment::assays(se))) {
+  if (
+    is.null(assay_name) ||
+      !assay_name %in% names(SummarizedExperiment::assays(se))
+  ) {
     stop("'assay_name' must identify an assay present in 'se'.")
   }
 
@@ -381,7 +413,9 @@ gsva_recon <- function(se,
 
   lib_sizes <- colSums(counts)
   if (any(lib_sizes <= 0)) {
-    stop("All samples must have positive library sizes for method = 'networkProp'.")
+    stop(
+      "All samples must have positive library sizes for method = 'networkProp'."
+    )
   }
 
   norm_counts <- sweep(counts, 2, lib_sizes, "/")
@@ -415,7 +449,7 @@ gsva_recon <- function(se,
   )
 }
 
-#' Recontextualize signatures with a selected baseline method
+#' @title Recontextualize signatures with one of either networkProp, projectCor, or mean.
 #'
 #' @param method Baseline recontextualization method. One of `"networkProp"`,
 #'   `"projectCor"`, or `"mean"`.
@@ -467,36 +501,38 @@ gsva_recon <- function(se,
 #'
 #' @return A named list of recontextualized gene signatures.
 #' @export
-recontextualize <- function(method = c("networkProp", "projectCor", "mean"),
-                            se = NULL,
-                            seeds = NULL,
-                            sigs = NULL,
-                            score = c("gsva", "eigen"),
-                            sig = c("rwr", "corr"),
-                            avg_p = FALSE,
-                            avg_p_vals = c(1e-4, 1e-1),
-                            avg_p_length = 5,
-                            p = 0.1,
-                            bootstrap = FALSE,
-                            n_bootstraps = 1000,
-                            limit = NULL,
-                            nfeatures = NULL,
-                            min.sft = 0.85,
-                            beta = NULL,
-                            cores = 1,
-                            cor.fn = c("bicor", "cor"),
-                            cor.type = c("unsigned", "signed hybrid", "signed"),
-                            powers = c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
-                            diag_zero = TRUE,
-                            perturbation_col = NULL,
-                            condition_col = NULL,
-                            perturbed_label = "Perturbed",
-                            control_label = "Control",
-                            design_vars = NULL,
-                            assay_name = NULL,
-                            alpha = 0.05,
-                            min_count = NULL,
-                            min_samples = 1) {
+recontextualize <- function(
+  method = c("networkProp", "projectCor", "mean"),
+  se = NULL,
+  seeds = NULL,
+  sigs = NULL,
+  score = c("gsva", "eigen"),
+  sig = c("rwr", "corr"),
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  p = 0.1,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  limit = NULL,
+  nfeatures = NULL,
+  min.sft = 0.85,
+  beta = NULL,
+  cores = 1,
+  cor.fn = c("bicor", "cor"),
+  cor.type = c("unsigned", "signed hybrid", "signed"),
+  powers = c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
+  diag_zero = TRUE,
+  perturbation_col = NULL,
+  condition_col = NULL,
+  perturbed_label = "Perturbed",
+  control_label = "Control",
+  design_vars = NULL,
+  assay_name = NULL,
+  alpha = 0.05,
+  min_count = NULL,
+  min_samples = 1
+) {
   method <- match.arg(method)
 
   if (is.null(se)) {
@@ -504,7 +540,10 @@ recontextualize <- function(method = c("networkProp", "projectCor", "mean"),
   }
 
   if (method == "networkProp") {
-    seeds <- .normalize_recontext_input(.recontext_input_or(seeds, sigs), "seeds")
+    seeds <- .normalize_recontext_input(
+      .recontext_input_or(seeds, sigs),
+      "seeds"
+    )
     if (is.null(seeds)) {
       stop("'seeds' or 'sigs' must be supplied for method = 'networkProp'.")
     }
@@ -555,7 +594,9 @@ recontextualize <- function(method = c("networkProp", "projectCor", "mean"),
 
   sigs <- .normalize_recontext_input(.recontext_input_or(sigs, seeds), "sigs")
   if (is.null(perturbation_col) || is.null(condition_col)) {
-    stop("'perturbation_col' and 'condition_col' are required for method = 'mean'.")
+    stop(
+      "'perturbation_col' and 'condition_col' are required for method = 'mean'."
+    )
   }
 
   .mean_recontextualize(
@@ -588,16 +629,15 @@ recontextualize <- function(method = c("networkProp", "projectCor", "mean"),
 #'
 #' @importFrom igraph V
 #' @importFrom Matrix sparseMatrix
-seed_matrix <- function(ig,
-                        seeds,
-                        bootstrap = FALSE,
-                        n_bootstraps = 1000) {
-
+#' @keywords internal
+seed_matrix <- function(ig, seeds, bootstrap = FALSE, n_bootstraps = 1000) {
   # Seeds can be a single character vector. In that case need to list-ify it.
   if (is.character(seeds) && length(seeds) == 1) {
     seeds <- setNames(list(seeds), seeds)
   }
-  if (is.null(names(seeds))) stop("Seed signature needs name")
+  if (is.null(names(seeds))) {
+    stop("Seed signature needs name")
+  }
 
   gene_names <- igraph::V(ig)$name
   gene_idx <- setNames(seq_along(gene_names), gene_names)
@@ -623,25 +663,32 @@ seed_matrix <- function(ig,
         sample_size <- (bin - 1) * 10 + last_digit
         genes <- sample.int(length(gene_names), sample_size)
 
-        bin_col <- (present_bin-1) * n_bootstraps + i
+        bin_col <- (present_bin - 1) * n_bootstraps + i
         row_indices[[bin_col]] <- genes
       }
     }
 
-    mat <- Matrix::sparseMatrix(i = unlist(row_indices, use.names = FALSE),
-                                j = rep(seq_len(n_cols), lengths(row_indices)),
-                                x = 1,
-                                dims = c(length(gene_names), n_cols),
-                                dimnames = list(gene_names, colnames_mat))
+    mat <- Matrix::sparseMatrix(
+      i = unlist(row_indices, use.names = FALSE),
+      j = rep(seq_len(n_cols), lengths(row_indices)),
+      x = 1,
+      dims = c(length(gene_names), n_cols),
+      dimnames = list(gene_names, colnames_mat)
+    )
   } else {
-    row_indices <- unlist(lapply(seeds, function(genes) unname(gene_idx[genes])), use.names = FALSE)
+    row_indices <- unlist(
+      lapply(seeds, function(genes) unname(gene_idx[genes])),
+      use.names = FALSE
+    )
     col_indices <- rep(seq_len(n_pbs), lengths(seeds))
 
-    mat <- Matrix::sparseMatrix(i = row_indices,
-                                j = col_indices,
-                                x = 1,
-                                dims = c(length(gene_names), n_pbs),
-                                dimnames = list(gene_names, names(seeds)))
+    mat <- Matrix::sparseMatrix(
+      i = row_indices,
+      j = col_indices,
+      x = 1,
+      dims = c(length(gene_names), n_pbs),
+      dimnames = list(gene_names, names(seeds))
+    )
   }
 
   return(mat)
@@ -661,16 +708,18 @@ seed_matrix <- function(ig,
 #' @param normalize Normalization strategy
 #' @return (n_gene, n_seeds) matrix of stationary probability values
 #' @noRd
-rwr_mat <- function(ig,
-                    seeds,
-                    restart = 0.75,
-                    avg_p = FALSE,
-                    avg_p_vals = c(1e-4, 1e-1),
-                    avg_p_length = 5,
-                    bootstrap = FALSE,
-                    n_bootstraps = 1000,
-                    epsilon = NULL,
-                    normalize = c("row", "column", "laplacian", "none")) {
+rwr_mat <- function(
+  ig,
+  seeds,
+  restart = 0.75,
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  epsilon = NULL,
+  normalize = c("row", "column", "laplacian", "none")
+) {
   # Assumes all seeds are present in ig graph
   # browser()
   stopifnot(is(ig, "igraph"))
@@ -678,15 +727,22 @@ rwr_mat <- function(ig,
 
   normalize <- match.arg(normalize)
 
-  seed_mat <- seed_matrix(ig, seeds, bootstrap = bootstrap, n_bootstraps = n_bootstraps)
+  seed_mat <- seed_matrix(
+    ig,
+    seeds,
+    bootstrap = bootstrap,
+    n_bootstraps = n_bootstraps
+  )
   transition_mat <- prepare_rwr_transition(ig = ig, normalize = normalize)
-  mat <- rwr_from_seed_matrix(transition_mat = transition_mat,
-                              seed_mat = seed_mat,
-                              restart = restart,
-                              avg_p = avg_p,
-                              avg_p_vals = avg_p_vals,
-                              avg_p_length = avg_p_length,
-                              epsilon = epsilon)
+  mat <- rwr_from_seed_matrix(
+    transition_mat = transition_mat,
+    seed_mat = seed_mat,
+    restart = restart,
+    avg_p = avg_p,
+    avg_p_vals = avg_p_vals,
+    avg_p_length = avg_p_length,
+    epsilon = epsilon
+  )
 
   return(mat)
 }
@@ -701,12 +757,14 @@ rwr_mat <- function(ig,
 #' @param percentile A double between 0,1 indicating the proportion cutoff for bootstrap-based signature derivation.
 #' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
 #' @return A named list of genesets. Each list element is the recontextualized signature for that seed.
-extract_sig_mat <- function(mat,
-                            bootstraps = NULL,
-                            sig_bins = NULL,
-                            percentile = 0.99,
-                            limit = 30) {
-
+#' @keywords internal
+extract_sig_mat <- function(
+  mat,
+  bootstraps = NULL,
+  sig_bins = NULL,
+  percentile = 0.99,
+  limit = 30
+) {
   sigs <- list()
 
   if (length(limit) == 1) {
@@ -715,17 +773,31 @@ extract_sig_mat <- function(mat,
     limits <- limit
   }
 
-  if(!is.null(bootstraps)) {
+  if (!is.null(bootstraps)) {
     # Extract top n signatures based on gene-level comparison with bootstraps
     intervals <- unique(colnames(bootstraps))
-    bounds <- t(vapply(strsplit(intervals, "-", fixed = TRUE), as.numeric, numeric(2)))
-    bootstrap_idx_by_interval <- split(seq_len(ncol(bootstraps)), colnames(bootstraps))
-    percentiles <- matrix(0, nrow = nrow(mat), ncol = ncol(mat), dimnames = dimnames(mat))
+    bounds <- t(vapply(
+      strsplit(intervals, "-", fixed = TRUE),
+      as.numeric,
+      numeric(2)
+    ))
+    bootstrap_idx_by_interval <- split(
+      seq_len(ncol(bootstraps)),
+      colnames(bootstraps)
+    )
+    percentiles <- matrix(
+      0,
+      nrow = nrow(mat),
+      ncol = ncol(mat),
+      dimnames = dimnames(mat)
+    )
 
     for (j in seq_len(ncol(mat))) {
       pb_name <- colnames(mat)[j]
       sig_bin <- sig_bins[[pb_name]]
-      interval <- intervals[which(sig_bin >= bounds[, 1] & sig_bin <= bounds[, 2])]
+      interval <- intervals[which(
+        sig_bin >= bounds[, 1] & sig_bin <= bounds[, 2]
+      )]
       bootstrap_idx <- bootstrap_idx_by_interval[[interval]]
       obs_col <- as.numeric(mat[, j])
       bootstrap_subset <- bootstraps[, bootstrap_idx, drop = FALSE]
@@ -749,7 +821,6 @@ extract_sig_mat <- function(mat,
       sig <- sort(mat_col, decreasing = TRUE) %>% names()
       sigs[[colname]] <- sig
     }
-
   } else {
     # Manually extract the 'top n' signatures set by limit parameter.
     for (col in 1:ncol(mat)) {
@@ -770,11 +841,12 @@ extract_sig_mat <- function(mat,
 #' Returns a dataframe object with the stationary probability value and column indicating whether gene was a seed
 #' @param prob_vec (n_gene, 1) matrix
 #' @param seeds character vector
+#' @keywords internal
 annotate_prob_vec <- function(prob_vec, seeds) {
   stopifnot(is(prob_vec, "dgCMatrix") | is(prob_vec, "Matrix"))
   stopifnot("Can only annotate (n x 1) vectors" = dim(prob_vec)[[2]] == 1)
 
-  if (is(prob_vec,"dgCMatrix")) {
+  if (is(prob_vec, "dgCMatrix")) {
     df <- as.data.frame(as.matrix(prob_vec))
   } else {
     df <- as.data.frame(prob_vec)
@@ -795,21 +867,31 @@ annotate_prob_vec <- function(prob_vec, seeds) {
 #' @param normalize Normalization strategy
 #' @return List of Annotated Dataframes. Each Dataframe has columns for gene label, probability value, and seed status.
 #' @noRd
-rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "laplacian", "none")) {
-
+rwr_df <- function(
+  ig,
+  seeds,
+  restart = 1e-2,
+  normalize = c("row", "column", "laplacian", "none")
+) {
   normalize <- match.arg(normalize)
-  mat <- rwr_mat(ig = ig, seeds = seeds, restart = restart, normalize = normalize)
+  mat <- rwr_mat(
+    ig = ig,
+    seeds = seeds,
+    restart = restart,
+    normalize = normalize
+  )
 
-  dfs <- sapply(colnames(mat),
-                function(x) annotate_prob_vec(mat[, x, drop = FALSE], seeds = seeds[[x]]),
-                USE.NAMES = TRUE,
-                simplify = FALSE
+  dfs <- sapply(
+    colnames(mat),
+    function(x) annotate_prob_vec(mat[, x, drop = FALSE], seeds = seeds[[x]]),
+    USE.NAMES = TRUE,
+    simplify = FALSE
   )
   return(dfs)
 }
 
 
-#' Finds a simulated network signature
+#' @title Network-propagation based Recontextualization.
 #'
 #' @param ig network given as an igraph
 #' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
@@ -827,16 +909,18 @@ rwr_df <- function(ig, seeds, restart = 1e-2, normalize = c("row", "column", "la
 #' @importFrom igraph as_adjacency_matrix
 #' @importFrom abind abind
 #' @export
-network_sig <- function(ig,
-                        seeds,
-                        sig = c("corr", "rwr"),
-                        avg_p = FALSE,
-                        avg_p_vals = c(1e-4, 1e-1),
-                        avg_p_length = 5,
-                        p = 0.1,
-                        bootstrap = FALSE,
-                        n_bootstraps = 1000,
-                        limit = 30) {
+network_sig <- function(
+  ig,
+  seeds,
+  sig = c("corr", "rwr"),
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  p = 0.1,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  limit = 30
+) {
   stopifnot(is(seeds, "character") | is(seeds, "list"))
   stopifnot(is(ig, "igraph"))
   sig <- match.arg(sig)
@@ -867,7 +951,9 @@ network_sig <- function(ig,
   }
 
   if (length(seeds) == 0) {
-    message("No signatures remained after filtering to genes present in the igraph network.")
+    message(
+      "No signatures remained after filtering to genes present in the igraph network."
+    )
     return(list())
   }
 
@@ -881,27 +967,37 @@ network_sig <- function(ig,
   } else if (sig == "rwr") {
     transition_mat <- prepare_rwr_transition(ig = ig, normalize = "row")
     obs_seed_mat <- seed_matrix(ig, seeds)
-    obs_mat <- rwr_from_seed_matrix(transition_mat = transition_mat,
-                                    seed_mat = obs_seed_mat,
-                                    restart = p,
-                                    avg_p = avg_p,
-                                    avg_p_vals = avg_p_vals,
-                                    avg_p_length = avg_p_length)
-    if(bootstrap & (p != 1)) {
+    obs_mat <- rwr_from_seed_matrix(
+      transition_mat = transition_mat,
+      seed_mat = obs_seed_mat,
+      restart = p,
+      avg_p = avg_p,
+      avg_p_vals = avg_p_vals,
+      avg_p_length = avg_p_length
+    )
+    if (bootstrap & (p != 1)) {
       # If bootstrap matrix is (n_genes, n_bootstraps x n_bins)
-      bootstrap_seed_mat <- seed_matrix(ig,
-                                        seeds,
-                                        bootstrap = bootstrap,
-                                        n_bootstraps = n_bootstraps)
-      mat_bootstraps <- rwr_from_seed_matrix(transition_mat = transition_mat,
-                                             seed_mat = bootstrap_seed_mat,
-                                             restart = p,
-                                             avg_p = avg_p,
-                                             avg_p_vals = avg_p_vals,
-                                             avg_p_length = avg_p_length)
+      bootstrap_seed_mat <- seed_matrix(
+        ig,
+        seeds,
+        bootstrap = bootstrap,
+        n_bootstraps = n_bootstraps
+      )
+      mat_bootstraps <- rwr_from_seed_matrix(
+        transition_mat = transition_mat,
+        seed_mat = bootstrap_seed_mat,
+        restart = p,
+        avg_p = avg_p,
+        avg_p_vals = avg_p_vals,
+        avg_p_length = avg_p_length
+      )
 
       sig_bins <- lapply(seeds, length)
-      net_sig <- extract_sig_mat(obs_mat, bootstraps = mat_bootstraps, sig_bins = sig_bins)
+      net_sig <- extract_sig_mat(
+        obs_mat,
+        bootstraps = mat_bootstraps,
+        sig_bins = sig_bins
+      )
     } else {
       net_sig <- extract_sig_mat(obs_mat, bootstraps = NULL, limit = limit)
     }
@@ -915,8 +1011,8 @@ network_sig <- function(ig,
 #' @param corr_mat Correlation Matrix
 #' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
 #' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
+#' @keywords internal
 correlated_sigs <- function(corr_mat, seeds, limit = 30) {
-
   # Seeds can be a single character vector. In that case need to list-ify it.
   if (is(seeds, "character") && length(seeds) == 1) {
     seeds <- list(seeds)
@@ -928,7 +1024,11 @@ correlated_sigs <- function(corr_mat, seeds, limit = 30) {
   all_genes <- unname(unlist(seeds))
   seed_filter <- all_genes %in% rownames(corr_mat)
 
-  stopifnot("Seed Genes are not all contained in the Correlation matrix." = all(seed_filter))
+  stopifnot(
+    "Seed Genes are not all contained in the Correlation matrix." = all(
+      seed_filter
+    )
+  )
 
   top_corrs <- list()
   for (gs_name in names(seeds)) {
@@ -953,6 +1053,7 @@ correlated_sigs <- function(corr_mat, seeds, limit = 30) {
 #' @param corr_mats List of correlation matrices
 #' @param seeds List of seeds, length has to match corr_mats
 #' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
+#' @keywords internal
 v.correlated_sigs <- function(corr_mats, seeds, limit = 30) {
   # browser()
   sigs <- list()
@@ -985,22 +1086,32 @@ v.correlated_sigs <- function(corr_mats, seeds, limit = 30) {
 #' @importFrom igraph list.edge.attributes as_adjacency_matrix
 #' @importFrom Matrix Diagonal colSums rowSums t
 #'
-#' @export
-random_walk <- function(ig, seed_mat, restart = 0.1, epsilon = NULL, normalize = c("row", "column", "laplacian", "none")) {
-
+#' @keywords internal
+random_walk <- function(
+  ig,
+  seed_mat,
+  restart = 0.1,
+  epsilon = NULL,
+  normalize = c("row", "column", "laplacian", "none")
+) {
   # Type checks
   stopifnot(is(ig) == "igraph")
   stopifnot(is(seed_mat, "matrix") || is(seed_mat, "Matrix"))
   normalize <- match.arg(normalize)
 
   transition_mat <- prepare_rwr_transition(ig = ig, normalize = normalize)
-  return(rwr_from_seed_matrix(transition_mat = transition_mat,
-                              seed_mat = seed_mat,
-                              restart = restart,
-                              epsilon = epsilon))
+  return(rwr_from_seed_matrix(
+    transition_mat = transition_mat,
+    seed_mat = seed_mat,
+    restart = restart,
+    epsilon = epsilon
+  ))
 }
 
-prepare_rwr_transition <- function(ig, normalize = c("row", "column", "laplacian", "none")) {
+prepare_rwr_transition <- function(
+  ig,
+  normalize = c("row", "column", "laplacian", "none")
+) {
   normalize <- match.arg(normalize)
 
   # Get Adjacency matrix
@@ -1032,44 +1143,59 @@ prepare_rwr_transition <- function(ig, normalize = c("row", "column", "laplacian
 }
 
 normalize_seed_matrix <- function(seed_mat) {
-  norm_seed_mat <- seed_mat %*% Matrix::Diagonal(x = (Matrix::colSums(seed_mat))^(-1))
+  norm_seed_mat <- seed_mat %*%
+    Matrix::Diagonal(x = (Matrix::colSums(seed_mat))^(-1))
   colnames(norm_seed_mat) <- colnames(seed_mat)
   as(norm_seed_mat, "CsparseMatrix")
 }
 
-rwr_from_seed_matrix <- function(transition_mat,
-                                 seed_mat,
-                                 restart = 0.1,
-                                 avg_p = FALSE,
-                                 avg_p_vals = c(1e-4, 1e-1),
-                                 avg_p_length = 5,
-                                 epsilon = NULL) {
+rwr_from_seed_matrix <- function(
+  transition_mat,
+  seed_mat,
+  restart = 0.1,
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  epsilon = NULL
+) {
   norm_seed_mat <- normalize_seed_matrix(seed_mat)
 
   if (avg_p) {
     avg_p_seq <- seq(avg_p_vals[1], avg_p_vals[2], length.out = avg_p_length)
-    mat <- Matrix::Matrix(0, nrow = nrow(norm_seed_mat), ncol = ncol(norm_seed_mat),
-                          dimnames = dimnames(norm_seed_mat), sparse = TRUE)
+    mat <- Matrix::Matrix(
+      0,
+      nrow = nrow(norm_seed_mat),
+      ncol = ncol(norm_seed_mat),
+      dimnames = dimnames(norm_seed_mat),
+      sparse = TRUE
+    )
 
     for (restart_val in avg_p_seq) {
-      mat <- mat + random_walk_from_transition(transition_mat = transition_mat,
-                                               norm_seed_mat = norm_seed_mat,
-                                               restart = restart_val,
-                                               epsilon = epsilon)
+      mat <- mat +
+        random_walk_from_transition(
+          transition_mat = transition_mat,
+          norm_seed_mat = norm_seed_mat,
+          restart = restart_val,
+          epsilon = epsilon
+        )
     }
     return(mat / avg_p_length)
   }
 
-  random_walk_from_transition(transition_mat = transition_mat,
-                              norm_seed_mat = norm_seed_mat,
-                              restart = restart,
-                              epsilon = epsilon)
+  random_walk_from_transition(
+    transition_mat = transition_mat,
+    norm_seed_mat = norm_seed_mat,
+    restart = restart,
+    epsilon = epsilon
+  )
 }
 
-random_walk_from_transition <- function(transition_mat,
-                                        norm_seed_mat,
-                                        restart = 0.1,
-                                        epsilon = NULL) {
+random_walk_from_transition <- function(
+  transition_mat,
+  norm_seed_mat,
+  restart = 0.1,
+  epsilon = NULL
+) {
   stopifnot(is(norm_seed_mat, "Matrix"))
 
   ## Stopping Criteria
@@ -1085,7 +1211,7 @@ random_walk_from_transition <- function(transition_mat,
 
   ## Exploration Parameters
   if (!is.null(epsilon)) {
-    stopifnot(is(epsilon,"numeric"))
+    stopifnot(is(epsilon, "numeric"))
 
     n_genes_seed_mean <- as.integer(mean(Matrix::colSums(norm_seed_mat > 0)))
     n_explore <- as.integer(n_genes_seed_mean * epsilon)

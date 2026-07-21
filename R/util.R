@@ -6,48 +6,51 @@
 #' @importFrom R6 R6Class
 #'
 #' @keywords internal
-pvector <- R6Class("pvector", list(
-  #' @field values A vector of values
-  values = NULL,
+pvector <- R6Class(
+  "pvector",
+  list(
+    #' @field values A vector of values
+    values = NULL,
 
-  #' @description
-  #' Create a pvector
-  #' @param values A vector of values
-  #' @return A new pvector
-  initialize = function(values=c()) {
-    self$values <- values
-  },
-  #' @description
-  #' Print pvector
-  #' @return NULL
-  print = function() {
-    base::print(self$values)
-    invisible(self)
-  },
-  #' @description
-  #' Get length of pvector
-  #' @return An integer
-  length = function() {
-    base::length(self$values)
-  },
-  #' @description
-  #' Pop vector
-  #' @return Popped value
-  pop = function() {
-    if (length(self$values) > 0) {
-      popped.value <- self$values[1]
-      self$values <- self$values[-1]
-      return(popped.value)
+    #' @description
+    #' Create a pvector
+    #' @param values A vector of values
+    #' @return A new pvector
+    initialize = function(values = c()) {
+      self$values <- values
+    },
+    #' @description
+    #' Print pvector
+    #' @return NULL
+    print = function() {
+      base::print(self$values)
+      invisible(self)
+    },
+    #' @description
+    #' Get length of pvector
+    #' @return An integer
+    length = function() {
+      base::length(self$values)
+    },
+    #' @description
+    #' Pop vector
+    #' @return Popped value
+    pop = function() {
+      if (length(self$values) > 0) {
+        popped.value <- self$values[1]
+        self$values <- self$values[-1]
+        return(popped.value)
+      }
+    },
+    #' @description
+    #' Push values
+    #' @param pushed.values A vector of values
+    #' @return NULL
+    push = function(pushed.values) {
+      self$values <- c(self$values, pushed.values)
     }
-  },
-  #' @description
-  #' Push values
-  #' @param pushed.values A vector of values
-  #' @return NULL
-  push = function(pushed.values) {
-    self$values <- c(self$values, pushed.values)
-  }
-))
+  )
+)
 
 #' Rank Genes in an ExpressionSet/SummarizedExperiment by Variability
 #'
@@ -68,10 +71,14 @@ pvector <- R6Class("pvector", list(
 #' @importFrom Biobase exprs
 #' @importFrom SummarizedExperiment assay
 #' @importFrom stats mad
-rank.var.eset <- function(eset, fn=mad, filter_zero=FALSE) {
+#' @keywords internal
+rank.var.eset <- function(eset, fn = mad, filter_zero = FALSE) {
   stopifnot(
-    "Input object must be an ExpressionSet or a SummarizedExperiment" =
-      is(eset, "ExpressionSet") || is(eset, "SummarizedExperiment")
+    "Input object must be an ExpressionSet or a SummarizedExperiment" = is(
+      eset,
+      "ExpressionSet"
+    ) ||
+      is(eset, "SummarizedExperiment")
   )
 
   # Extract expression matrix based on object type
@@ -84,13 +91,13 @@ rank.var.eset <- function(eset, fn=mad, filter_zero=FALSE) {
   }
   gene.var <- apply(eset.mat, 1, fn)
 
-  if(filter_zero) {
+  if (filter_zero) {
     genes.keep <- gene.var != 0
     non_zero_genes <- rownames(eset.mat)[genes.keep]
-    eset.mat <- eset.mat[non_zero_genes,]
+    eset.mat <- eset.mat[non_zero_genes, ]
   }
 
-  ranked.genes <- pvector$new(names(sort(gene.var, decreasing=TRUE)))
+  ranked.genes <- pvector$new(names(sort(gene.var, decreasing = TRUE)))
   return(ranked.genes)
 }
 
@@ -115,14 +122,20 @@ rank.var.eset <- function(eset, fn=mad, filter_zero=FALSE) {
 #' @importFrom parallel detectCores makeCluster parLapply
 #' @importFrom doParallel registerDoParallel
 #' @importFrom Biobase featureNames
-common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALSE) {
-  if(parallel) {
+#' @keywords internal
+common_mad_genes <- function(
+  esets,
+  limit = 2500,
+  parallel = FALSE,
+  filter_zero = FALSE
+) {
+  if (parallel) {
     no_cores <- detectCores() - 1
-    registerDoParallel(cores=no_cores)
-    cl <- makeCluster(no_cores, type="FORK")
+    registerDoParallel(cores = no_cores)
+    cl <- makeCluster(no_cores, type = "FORK")
     ranked.genes <- parallel::parLapply(esets, rank.var.eset)
   } else {
-    ranked.genes <- lapply(esets, rank.var.eset, filter_zero=filter_zero)
+    ranked.genes <- lapply(esets, rank.var.eset, filter_zero = filter_zero)
     print("Finished ranking esets")
   }
 
@@ -130,13 +143,17 @@ common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALS
   i <- 1
   while (TRUE) {
     popped <- ranked.genes[[i]]$pop()
-    in_all_esets <- all(sapply(esets, function (x) popped %in% featureNames(x)))
-    if (popped %in% genes.selected | !in_all_esets) next
+    in_all_esets <- all(sapply(esets, function(x) popped %in% featureNames(x)))
+    if (popped %in% genes.selected | !in_all_esets) {
+      next
+    }
 
     genes.selected <- c(genes.selected, popped)
-    i <- i+1
+    i <- i + 1
 
-    if (i == length(ranked.genes)+1) i <- 1
+    if (i == length(ranked.genes) + 1) {
+      i <- 1
+    }
     if (length(genes.selected) >= limit) break
   }
   return(genes.selected)
@@ -157,28 +174,40 @@ common_mad_genes <- function(esets, limit=2500, parallel=FALSE, filter_zero=FALS
 #' selecting genes that are present in all objects. It continues until it reaches
 #' the specified limit or exhausts all common variable genes.
 #'
+#' @keywords internal
 seurat_common_var_genes <- function(seurat_objs, limit) {
-
   if (!requireNamespace("Seurat", quietly = TRUE)) {
-    stop("The 'Seurat' package is required for seurat_common_var_genes(). Install it with install.packages('Seurat').")
+    stop(
+      "The 'Seurat' package is required for seurat_common_var_genes(). Install it with install.packages('Seurat')."
+    )
   }
 
-  if(seurat_objs[[1]]@version == "5.0.1") {
-    pvectors <- lapply(seurat_objs, function(x) pvector$new(Seurat::VariableFeatures(x)))
+  if (seurat_objs[[1]]@version == "5.0.1") {
+    pvectors <- lapply(seurat_objs, function(x) {
+      pvector$new(Seurat::VariableFeatures(x))
+    })
   } else {
-    pvectors <- lapply(seurat_objs, function(x) pvector$new(x@assays$RNA@var.features))
+    pvectors <- lapply(seurat_objs, function(x) {
+      pvector$new(x@assays$RNA@var.features)
+    })
   }
   selected <- c()
   i <- 1
   while (TRUE) {
     popped <- pvectors[[i]]$pop()
-    in_all_esets <- all(sapply(seurat_objs, function (x) popped %in% rownames(x)))
-    if (popped %in% selected | !in_all_esets) next
+    in_all_esets <- all(sapply(seurat_objs, function(x) {
+      popped %in% rownames(x)
+    }))
+    if (popped %in% selected | !in_all_esets) {
+      next
+    }
 
     selected <- c(selected, popped)
-    i <- i+1
+    i <- i + 1
 
-    if (i == length(pvectors)+1) i <- 1
+    if (i == length(pvectors) + 1) {
+      i <- 1
+    }
     if (length(selected) >= limit) break
   }
   return(selected)
@@ -196,7 +225,8 @@ seurat_common_var_genes <- function(seurat_objs, limit) {
 #' @examples
 #' vec <- c(3, 15, 27, 45, 58, 99)
 #' bin_presence(vec)
-#' @export
+#'
+#' @keywords internal
 bin_presence <- function(x) {
   breaks <- seq(1, 100, by = 10)
   labels <- paste(breaks, breaks + 9, sep = "-")
@@ -207,7 +237,7 @@ bin_presence <- function(x) {
   return(present)
 }
 
-#' Filter Significant Genes by Perturbation
+#' @title Extract DEGs from a Differential Expression Table
 #'
 #' @description
 #' Filters and ranks genes by significance for each perturbation in a differential
@@ -248,21 +278,24 @@ bin_presence <- function(x) {
 #' }
 #' @importFrom dplyr filter arrange slice
 #' @export
-sig_filter_fn <- function(diff_table,
-                          perts,
-                          alpha = 0.05,
-                          limit = 100,
-                          pert_col = "product",
-                          log2fc_col = "avg_log2FC",
-                          pval_col = "p_val_adj",
-                          geneid_col = "ensembl_id") {
+sig_filter_fn <- function(
+  diff_table,
+  perts,
+  alpha = 0.05,
+  limit = 100,
+  pert_col = "product",
+  log2fc_col = "avg_log2FC",
+  pval_col = "p_val_adj",
+  geneid_col = "ensembl_id"
+) {
   results <- list()
 
-  for(pb in perts) {
+  for (pb in perts) {
     print(pb)
 
     # Create combined score column
-    diff_table$logFC_adjpval <- diff_table[[log2fc_col]] * (-log10(diff_table[[pval_col]]))
+    diff_table$logFC_adjpval <- diff_table[[log2fc_col]] *
+      (-log10(diff_table[[pval_col]]))
 
     # Get all genes for this perturbation, ordered by score
     full_sig <- diff_table %>%
@@ -310,11 +343,12 @@ sig_filter_fn <- function(diff_table,
 #'
 #' @importFrom BiocParallel MulticoreParam SnowParam SerialParam
 #' @export
-make_bpparam <- function(workers = 1,
-                         RNGseed = NULL,
-                         progress = FALSE,
-                         type = NULL) {
-
+make_bpparam <- function(
+  workers = 1,
+  RNGseed = NULL,
+  progress = FALSE,
+  type = NULL
+) {
   # Sequential execution
   if (workers == 1) {
     return(BiocParallel::SerialParam())
@@ -328,24 +362,27 @@ make_bpparam <- function(workers = 1,
   # Create appropriate backend
   if (type == "multicore") {
     if (.Platform$OS.type != "unix") {
-      warning("MulticoreParam only works on Unix/Mac, falling back to SnowParam")
+      warning(
+        "MulticoreParam only works on Unix/Mac, falling back to SnowParam"
+      )
       type <- "snow"
     }
   }
 
-  BPPARAM <- switch(type,
-                    "multicore" = BiocParallel::MulticoreParam(
-                      workers = workers,
-                      RNGseed = RNGseed,
-                      progressbar = progress
-                    ),
-                    "snow" = BiocParallel::SnowParam(
-                      workers = workers,
-                      RNGseed = RNGseed,
-                      progressbar = progress
-                    ),
-                    "serial" = BiocParallel::SerialParam(),
-                    stop("Unknown backend type: ", type)
+  BPPARAM <- switch(
+    type,
+    "multicore" = BiocParallel::MulticoreParam(
+      workers = workers,
+      RNGseed = RNGseed,
+      progressbar = progress
+    ),
+    "snow" = BiocParallel::SnowParam(
+      workers = workers,
+      RNGseed = RNGseed,
+      progressbar = progress
+    ),
+    "serial" = BiocParallel::SerialParam(),
+    stop("Unknown backend type: ", type)
   )
 
   return(BPPARAM)
@@ -367,12 +404,9 @@ make_bpparam <- function(workers = 1,
 #' result <- fgsea_wrapper(ref, data)
 #'
 #' @importFrom fgsea fgseaMultilevel
-#' @export
-fgsea_wrapper <- function(ref,
-                          data,
-                          scoreType = "std",
-                          eps = 1e-50) {
-
+#'
+#' @keywords internal
+fgsea_wrapper <- function(ref, data, scoreType = "std", eps = 1e-50) {
   # Input validation
   if (length(ref) == 0) {
     stop("'ref' must be a non-empty vector of ranked gene symbols")
@@ -478,12 +512,13 @@ fgsea_wrapper <- function(ref,
 #' @importFrom fgsea fgseaMultilevel
 #' @importFrom BiocParallel bplapply SerialParam MulticoreParam SnowParam
 #' @export
-v.fgsea <- function(ref_vecs,
-                    data_vecs,
-                    scoreType = "std",
-                    eps = 1e-50,
-                    BPPARAM = NULL) {
-
+v.fgsea <- function(
+  ref_vecs,
+  data_vecs,
+  scoreType = "std",
+  eps = 1e-50,
+  BPPARAM = NULL
+) {
   # Input validation
   if (!is.list(ref_vecs) || !is.list(data_vecs)) {
     stop("'ref_vecs' and 'data_vecs' must be named lists")
@@ -514,15 +549,43 @@ v.fgsea <- function(ref_vecs,
     ref <- ref_vecs[[name]]
     data <- data_vecs[[name]]
 
-    tryCatch({
-      result <- fgsea_wrapper(
-        ref = ref,
-        data = data,
-        scoreType = scoreType,
-        eps = eps
-      )
+    tryCatch(
+      {
+        result <- fgsea_wrapper(
+          ref = ref,
+          data = data,
+          scoreType = scoreType,
+          eps = eps
+        )
 
-      if (is.null(result)) {
+        if (is.null(result)) {
+          return(data.frame(
+            name = name,
+            ES = NA,
+            NES = NA,
+            pval = NA,
+            padj = NA,
+            log2err = NA,
+            size = 0,
+            leadingEdge = I(list(character(0))),
+            stringsAsFactors = FALSE
+          ))
+        }
+
+        return(data.frame(
+          name = name,
+          ES = result$ES,
+          NES = result$NES,
+          pval = result$pval,
+          padj = result$padj,
+          log2err = result$log2err,
+          size = result$size,
+          leadingEdge = I(list(result$leadingEdge)),
+          stringsAsFactors = FALSE
+        ))
+      },
+      error = function(e) {
+        warning(sprintf("Error processing '%s': %s", name, e$message))
         return(data.frame(
           name = name,
           ES = NA,
@@ -535,32 +598,7 @@ v.fgsea <- function(ref_vecs,
           stringsAsFactors = FALSE
         ))
       }
-
-      return(data.frame(
-        name = name,
-        ES = result$ES,
-        NES = result$NES,
-        pval = result$pval,
-        padj = result$padj,
-        log2err = result$log2err,
-        size = result$size,
-        leadingEdge = I(list(result$leadingEdge)),
-        stringsAsFactors = FALSE
-      ))
-    }, error = function(e) {
-      warning(sprintf("Error processing '%s': %s", name, e$message))
-      return(data.frame(
-        name = name,
-        ES = NA,
-        NES = NA,
-        pval = NA,
-        padj = NA,
-        log2err = NA,
-        size = 0,
-        leadingEdge = I(list(character(0))),
-        stringsAsFactors = FALSE
-      ))
-    })
+    )
   }
 
   # Run analysis with BiocParallel
@@ -595,8 +633,7 @@ v.fgsea <- function(ref_vecs,
 #'
 #' @export
 v.jaccard <- function(sigs1, sigs2) {
-
-  if(!setequal(names(sigs1), names(sigs2))) {
+  if (!setequal(names(sigs1), names(sigs2))) {
     print("Filtering sets to matching pairs.")
     shared_vecs <- intersect(names(sigs1), names(sigs2))
     removed_vecs <- setdiff(names(sigs1), names(sigs2))
@@ -608,7 +645,7 @@ v.jaccard <- function(sigs1, sigs2) {
   stopifnot(all.equal(names(sigs1), names(sigs2)))
 
   sims <- c()
-  for(i in seq_along(sigs1)) {
+  for (i in seq_along(sigs1)) {
     sim <- jaccard(sigs1[[i]], sigs2[[i]])
     sims <- c(sims, sim)
   }
@@ -626,7 +663,7 @@ v.jaccard <- function(sigs1, sigs2) {
 jaccard <- function(a, b) {
   intersection <- length(intersect(a, b))
   union <- length(a) + length(b) - intersection
-  return (intersection/union)
+  return(intersection / union)
 }
 
 #' Create a Jaccard Similarity Matrix for Multiple Sets
@@ -635,10 +672,10 @@ jaccard <- function(a, b) {
 #'
 #' @return A matrix of Jaccard similarity scores between all pairs of sets
 #'
-#' @export
+#' @keywords internal
 jaccard_matrix <- function(sets) {
   n_sets <- length(sets)
-  jaccard_mat <- matrix(data = NA,nrow=n_sets,ncol=n_sets)
+  jaccard_mat <- matrix(data = NA, nrow = n_sets, ncol = n_sets)
   rownames(jaccard_mat) <- names(sets)
   colnames(jaccard_mat) <- names(sets)
 
@@ -654,15 +691,19 @@ jaccard_matrix <- function(sets) {
 }
 
 #' Count number of displaced seeds
-#' Note: This not commutative. Num_displaced is the number of genes that are from the original seed that are not in the recon.
+#'
+#' @description
+#' Quantifies the number of genes from the original source signature that are still in the recontextualized signature `not_displaced`,
+#' and the number of genes that are `displaced`. Note: This operation is not commutative.
+#'
 #' @param recon_sig Named list of genesets
 #' @param seed_sig Named list of genesets
 #' @return Named list for which each entry is a list with two elements: displaced seed genes, and non-displaced seed genes
 #'
 #' @export
+#'
 count_displaced_genes <- function(recon_sig, seed_sig) {
-
-  if(!setequal(names(recon_sig), names(seed_sig))) {
+  if (!setequal(names(recon_sig), names(seed_sig))) {
     print("Filtering sets to matching pairs.")
     shared_vecs <- intersect(names(recon_sig), names(seed_sig))
     removed_vecs <- setdiff(names(recon_sig), names(seed_sig))
@@ -678,7 +719,10 @@ count_displaced_genes <- function(recon_sig, seed_sig) {
     seeds_in_recon <- seed_sig[[name]] %in% recon_sig[[name]]
     n_displaced <- sum(!seeds_in_recon)
     n_not_displaced <- sum(seeds_in_recon)
-    displaced[[name]] <- list(displaced = n_displaced, not_displaced = n_not_displaced)
+    displaced[[name]] <- list(
+      displaced = n_displaced,
+      not_displaced = n_not_displaced
+    )
   }
 
   return(displaced)
@@ -689,8 +733,9 @@ count_displaced_genes <- function(recon_sig, seed_sig) {
 #' @param matrix A numeric matrix to be normalized
 #'
 #' @return A matrix with columns normalized by their sums
+#' @keywords internal
 col_normalize <- function(matrix) {
-  return(scale(matrix, center=FALSE, scale=colSums(matrix)))
+  return(scale(matrix, center = FALSE, scale = colSums(matrix)))
 }
 
 #' Binarize Multiple Matrices Based on Cutoffs
@@ -704,10 +749,10 @@ col_normalize <- function(matrix) {
 #' This function takes a list of matrices and a corresponding list of cutoff values.
 #' For each matrix, values less than or equal to the cutoff are set to 0, and values
 #' greater than the cutoff are set to 1.
+#' @keywords internal
 binarize_matrices <- function(matrix_list, cutoff_list) {
-
   #Two lists should be of equal length, with the same names
-  stopifnot(names(matrix_list)==names(cutoff_list))
+  stopifnot(names(matrix_list) == names(cutoff_list))
   binarized_matrices <- list()
   for (i in seq_along(cutoff_list)) {
     cutoff <- cutoff_list[[i]]
@@ -728,6 +773,7 @@ binarize_matrices <- function(matrix_list, cutoff_list) {
 #' @return An igraph object representing the largest connected component of the input graph
 #'
 #' @importFrom igraph components V subgraph
+#' @keywords internal
 largest_connected_subgraph <- function(igraph) {
   component_filter <- components(igraph)$membership == 1
   component_nodes <- V(igraph)$name[component_filter]
@@ -742,9 +788,9 @@ drop_nas_list <- function(l) {
   return(l)
 }
 
-filter_list <- function(l, filter=1) {
+filter_list <- function(l, filter = 1) {
   #l is a list
-  l <- l[l==filter]
+  l <- l[l == filter]
   return(l)
 }
 
@@ -769,11 +815,18 @@ filter_list <- function(l, filter=1) {
 #' @importFrom igraph components
 #' @importFrom purrr reduce
 #' @importFrom magrittr %>%
+#' @keywords internal
 common_signature_filter <- function(graphs, signatures) {
   new_sigs <- list()
   for (sig_name in names(signatures)) {
     sig <- signatures[[sig_name]]
-    node_common <- lapply(graphs, function(x) igraph::components(x)$membership[sig] %>% drop_nas_list %>% filter_list %>% names) %>% purrr::reduce(intersect)
+    node_common <- lapply(graphs, function(x) {
+      igraph::components(x)$membership[sig] %>%
+        drop_nas_list %>%
+        filter_list %>%
+        names
+    }) %>%
+      purrr::reduce(intersect)
     new_sigs[[sig_name]] <- node_common
   }
   return(new_sigs)
@@ -798,15 +851,25 @@ get_signature <- function(rwr_df, sig_label, node_label, cancer_label) {
   # rwr_df: Dataframe of stationary probabilities with cancer, signature, and node annotations
   # Return: List of node labels that are significant after doing signature propagation on cancer_label graph with sig_label sig
 
-  sig <- rwr_df %>% dplyr::filter((Node == node_label) & (cancer == cancer_label) & (signature == sig_label)) %>% pull(name)
+  sig <- rwr_df %>%
+    dplyr::filter(
+      (Node == node_label) & (cancer == cancer_label) & (signature == sig_label)
+    ) %>%
+    pull(name)
   return(sig)
 }
 
-get_signature_list <- function(rwr_df, sig_label, node_label="Significant") {
+get_signature_list <- function(rwr_df, sig_label, node_label = "Significant") {
   # Returns a named list of significant nodes for each cancer
   cancer_labels <- unique(rwr_df[['cancer']])
   names(cancer_labels) <- cancer_labels
-  return(lapply(cancer_labels, get_signature, rwr_df=rwr_df, node_label=node_label, sig_label=sig_label))
+  return(lapply(
+    cancer_labels,
+    get_signature,
+    rwr_df = rwr_df,
+    node_label = node_label,
+    sig_label = sig_label
+  ))
 }
 
 #' Find all pairwise distances between nodes in an igraph
@@ -823,6 +886,7 @@ get_signature_list <- function(rwr_df, sig_label, node_label="Significant") {
 #' The function first calculates the full distance matrix for the graph using igraph::distances().
 #' Then, for each set of nodes in `node_list`, it extracts the relevant submatrix and returns
 #' the lower triangular part, which represents all pairwise distances within that set.
+#' @keywords internal
 all_dists_nodesets <- function(g, node_list) {
   stopifnot(class(g) == "igraph")
   stopifnot(class(node_list) == "list")
@@ -837,7 +901,7 @@ all_dists_nodesets <- function(g, node_list) {
     return(g_dist_sig)
   }
 
-  dists_nodesets <- lapply(node_list, all_dists_nodeset, dist_matrix=g_dist)
+  dists_nodesets <- lapply(node_list, all_dists_nodeset, dist_matrix = g_dist)
   return(dists_nodesets)
 }
 
@@ -846,6 +910,7 @@ all_dists_nodesets <- function(g, node_list) {
 #' @return A ggplot object
 #'
 #' @importFrom ggplot2 ggplot theme_void
+#' @keywords internal
 ggempty <- function() {
   ggplot() +
     theme_void()
@@ -861,22 +926,36 @@ ggempty <- function() {
 #' @return A ggplot object
 #'
 #' @importFrom ggplot2 qplot aes geom_rug geom_hline geom_vline annotate theme element_text element_blank element_line element_rect
-ggeplot <- function(n, positions, x_axis, y_axis, title="") {
+#' @keywords internal
+ggeplot <- function(n, positions, x_axis, y_axis, title = "") {
   score <- which.max(abs(y_axis))
-  qplot(x_axis,
-        y_axis,
-        main=title,
-        ylab="Running Enrichment Score",
-        xlab="Position in Ranked List of Genes",
-        geom="line")+
-    geom_rug(data=data.frame(positions), aes(x=positions), inherit.aes=FALSE)+
-    geom_hline(yintercept=0) +
-    geom_vline(xintercept=n/2, linetype="dotted") +
-    annotate("point", x=x_axis[score], y=y_axis[score], color="red") +
-    annotate("text", x=x_axis[score]+n/20, y=y_axis[score], label=round(y_axis[score],2)) +
-    annotate("point", x=x_axis[score], y=y_axis[score], color="red") +
-    theme(plot.title=element_text(hjust=0.5),
-          panel.background=element_blank(),
-          axis.line=element_line(color="black"),
-          panel.border=element_rect(color="black", fill=NA, size=1))
+  qplot(
+    x_axis,
+    y_axis,
+    main = title,
+    ylab = "Running Enrichment Score",
+    xlab = "Position in Ranked List of Genes",
+    geom = "line"
+  ) +
+    geom_rug(
+      data = data.frame(positions),
+      aes(x = positions),
+      inherit.aes = FALSE
+    ) +
+    geom_hline(yintercept = 0) +
+    geom_vline(xintercept = n / 2, linetype = "dotted") +
+    annotate("point", x = x_axis[score], y = y_axis[score], color = "red") +
+    annotate(
+      "text",
+      x = x_axis[score] + n / 20,
+      y = y_axis[score],
+      label = round(y_axis[score], 2)
+    ) +
+    annotate("point", x = x_axis[score], y = y_axis[score], color = "red") +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      panel.background = element_blank(),
+      axis.line = element_line(color = "black"),
+      panel.border = element_rect(color = "black", fill = NA, size = 1)
+    )
 }

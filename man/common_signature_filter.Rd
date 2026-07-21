@@ -27,3 +27,4 @@ For each signature:
 \item It returns this intersection as the new filtered signature.
 }
 }
+\keyword{internal}

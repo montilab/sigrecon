@@ -2,7 +2,7 @@
 % Please edit documentation in R/baseline_evaluation.R
 \name{recon_eval_df}
 \alias{recon_eval_df}
-\title{Evaluate recontextualized signatures}
+\title{Network Propagation Helper}
 \usage{
 recon_eval_df(
   ig,
@@ -60,5 +60,6 @@ recon_eval_df(
 \item{limit}{Number of genes to keep in the output, or a vector of lengths}
 }
 \description{
-Evaluate recontextualized signatures
+Network Propagation Helper
 }
+\keyword{internal}

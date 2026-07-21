@@ -31,3 +31,4 @@ It returns a sparse matrix with stationary probabilities.
 Perform a random walk with restart (personalized page rank) on an igraph given a seed matrix, and return stationary probabilties.
 Stripped down and corrected version of dnet: https://rdrr.io/cran/dnet/src/R/dRWR.r
 }
+\keyword{internal}

@@ -23,3 +23,4 @@ The function iterates through the variable features of each Seurat object,
 selecting genes that are present in all objects. It continues until it reaches
 the specified limit or exhausts all common variable genes.
 }
+\keyword{internal}

@@ -22,3 +22,4 @@ This function takes a list of matrices and a corresponding list of cutoff values
 For each matrix, values less than or equal to the cutoff are set to 0, and values
 greater than the cutoff are set to 1.
 }
+\keyword{internal}

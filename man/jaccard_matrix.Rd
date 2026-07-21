@@ -15,3 +15,4 @@ A matrix of Jaccard similarity scores between all pairs of sets
 \description{
 Create a Jaccard Similarity Matrix for Multiple Sets
 }
+\keyword{internal}

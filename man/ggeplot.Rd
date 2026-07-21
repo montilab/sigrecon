@@ -23,3 +23,4 @@ A ggplot object
 \description{
 Enrichment plot implemented in ggplot
 }
+\keyword{internal}

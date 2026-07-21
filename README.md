@@ -2,24 +2,30 @@
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 <!-- badges: end -->
 
-# Signature Recontextualization
+# sigRecon: Signature Recontextualization
 
-**Signature recontextualization**: given a gene signature for a perturbation in one biological context, predict the corresponding signature for that same perturbation in a different context. This package provides two baseline methods — projection-based scoring (`projectCor()`) and network propagation (`wgcna.adj()` + `network_sig()`) — plus benchmarking tools and data to evaluate recontextualization methods generally.
+The signature recontextualization problem describes a simple goal in computational biology:
+Given a gene signature X of a genetic or chemical perturbation in model organism Y, what is the corresponding gene signature of the same perturbation in model organism Z?
+
+Any method that is able to input a ranked list of genes from one biological context and output another ranked list of genes for another context performs this task of 'signature recontextualization'.
+
+This repository contains benchmarking tasks and data for evaluating signature recontextualization (as reported in [sigrecon_benchmarking](https://github.com/montilab/sigRecon_Benchmarking)), plus implementations of two of our own methods: projection-based scoring (`projectCor()`) and network propagation (`network_sig()`).
 
 ## Installation
 
+Note: BiocManager installer is used to handle dependences. This package is currently not hosted on Bioconductor.
 ```r
 BiocManager::install("montilab/sigrecon", dependencies = TRUE)
 ```
 
-## Quick start
+## Quick Start
 
-Runs entirely on bundled real-data demo objects (`demo_sciplex_sigs`/`_se`/`_true_sigs`; one such triple exists per dataset — Perturb-seq, SciPlex, DrugMatrix, Tahoe):
+The example below runs entirely on a small, bundled real-data example: `demo_sciplex_sigs` (source-context signatures), `demo_sciplex_se` (target-context expression), and `demo_sciplex_true_sigs` (target-context ground truth). Demo data is bundled for each dataset in the benchmarking study (Perturb-seq, SciPlex, DrugMatrix, Tahoe); full pseudobulk datasets are on Zenodo.
 
 ```r
 library(sigrecon)
 
-# Recontextualize with projectCor() (projection-based scoring)
+# Recontextualize with projectCor
 recon_projectcor <- projectCor(demo_sciplex_se, demo_sciplex_sigs, score = "gsva")
 
 # Or with network propagation
@@ -37,9 +43,3 @@ eval_df <- sig_eval_table(
 )
 head(eval_df[, c("gene", "jacc", "NES", "padj")])
 ```
-
-See `vignette("getting-started", package = "sigrecon")` for a full walkthrough, `?demo_datasets` for the other three demo triples, and `list_datasets()`/`get_dataset()` for the full-size source datasets (also on Zenodo).
-
-## Bring your own data
-
-`projectCor()`/`network_sig()` work on any data, not just the demos. Signatures are a named list of gene-ID vectors (`sig_filter_fn()` builds these from a DE table). Expression: `projectCor()` wants a `SummarizedExperiment` (genes × samples); `wgcna.adj()` wants a plain matrix, **transposed** (samples × genes) — normalize raw counts and drop zero-variance genes first. Gene IDs must share a namespace with your signature. A full worked example is planned as a vignette; see `?sig_filter_fn`, `?projectCor`, `?wgcna.adj` in the meantime.

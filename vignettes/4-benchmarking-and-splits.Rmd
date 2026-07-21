@@ -1,5 +1,5 @@
 ---
-title: "Benchmarking Design: Splits and Evaluation Metrics"
+title: "Benchmarking: Controlling for target-data availability"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Benchmarking Design: Splits and Evaluation Metrics}
@@ -21,11 +21,11 @@ library(sigrecon)
 The [Getting Started](getting-started.html) vignette runs `sig_eval_table()`
 once and glances at a few of its output columns. This vignette covers the
 evaluation design in full: what every output column means, the
-ctrl/10th/90th split design used to benchmark methods at varying amounts of
+Control/10th/90th split design used to benchmark methods at varying amounts of
 target-context information, and how to compare against a no-change baseline
 with `paired_eval_table()`.
 
-## `sig_eval_table()` output columns
+## Understanding `sig_eval_table()` 
 
 ```{r eval-basic}
 recon <- projectCor(demo_sciplex_se, demo_sciplex_sigs, score = "gsva")
@@ -63,36 +63,30 @@ recontextualization.
 eval_df$leadingEdge[[1]]
 ```
 
-## The ctrl / 10th / 90th split design
+## The Control / 10th / 90th Benchmarking Regimes
 
-A recontextualization method that's simply handed the true target-context
-signature as extra input isn't really being tested -- it's cheating. The
-package's benchmarking study evaluates methods under three conditions that
-control how much target-context information is available:
+Data-leakage is an important consideration for training and evaluating 
+recontextualization methods. If methods are trained broadly on available 
+perturbational data, as is often the case with foundation models, the 
+true target-context perturbation signature may have already been seen at inference. 
 
-- **`ctrl`**: none of the target perturbations' information is available to
-  the method beyond the source signature itself (what every example so far
-  in this vignette series has done).
-- **`ctrl_10th`**: the method is allowed 1/10th of the target perturbations
-  as reference (e.g. to tune a network or model), then evaluated on the
-  *other* 9/10th -- the harder, held-out majority.
-- **`ctrl_90th`**: the reverse -- allowed 9/10th, evaluated on the remaining
-  1/10th.
+One of the main contributions of `sigrecon` is to provide benchmarking methods 
+for evaluating methods under three conditions that explicitly control how much 
+target-context information is available:
 
-In the real analysis scripts, which perturbations fall in which split is
-decided once and saved to a `drug_splits.csv`/`pb_splits.csv` file: one
-column per split (`split_1`, `split_2`, ...), each a logical vector marking
-a fixed ~10%/90% partition of perturbations, aligned to a
-perturbation-label column. The same partition serves both regimes by
-flipping which side is the reference and which is evaluated:
-`split_type = "10th"` uses the `TRUE` (small) side as reference and
-evaluates the `FALSE` (majority) side; `split_type = "90th"` uses the
-`FALSE` side as reference and evaluates the `TRUE` side.
+- **`Control`**: None of the target perturbation profiles are available to the method.
+- **`10th`**: 1/10th of the target perturbations are available. The method is then evaluated on
+  the remaining 9/10th of held-out target perturbations.
+- **`90th`**: 9/10th of the target perturbations are available. 
+  The method is then evaluated on the remaining 1/10th of held-out target perturbations.
+
+In the benchmarking scripts ([link](https://github.com/montilab/sigRecon_Benchmarking)), which perturbations fall in which split is decided once and saved to a `drug_splits.csv`/`pb_splits.csv` file. 
+
 `sig_eval_table(splits = TRUE, split_file = ..., split_pb_col = ...,
 split_type = c("10th", "90th"))` reads that file directly and filters which
-perturbations get evaluated for you.
+perturbations get evaluated.
 
-### A worked example
+### An Example
 
 `splits = TRUE` expects `pred_sigs` to be a *named list of splits*, each
 element itself a signature list, with names matching the split file's
@@ -143,7 +137,7 @@ perturbations in the full `demo_sciplex_sigs`, and split across the two
 
 ## Comparing against a no-change baseline
 
-The natural baseline for "did recontextualization help" is doing nothing --
+The natural baseline for "does recontextualization help?" is doing nothing --
 using the unmodified source signature as the prediction. `sig_eval_table()`
 computes this the same way as any other prediction, just passing the source
 signatures as `pred_sigs`:
@@ -179,10 +173,3 @@ recontextualized prediction (matching `sig_eval_table()`'s internal
 value) -- `Jacc_delta`/`NES_delta` being positive means recontextualization
 improved on the baseline for that perturbation.
 
-## Next steps
-
-- The [Getting Started](getting-started.html) vignette for the full
-  recontextualization workflow
-- The [Network Propagation in Depth](network-propagation-details.html)
-  vignette for `network_sig()`'s options
-- `?sig_eval_table`, `?paired_eval_table` for full parameter references

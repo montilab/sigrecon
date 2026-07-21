@@ -2,7 +2,7 @@
 % Please edit documentation in R/baseline_evaluation.R
 \name{paired_eval_table}
 \alias{paired_eval_table}
-\title{Pair a Recontextualization Evaluation Table With a No-Change Baseline}
+\title{Evaluate recontextualization methods relative to no-change baseline}
 \usage{
 paired_eval_table(combined_df, no_change_eval_path)
 }

@@ -27,3 +27,4 @@ The function ranks genes in each ExpressionSet by their MAD, then iteratively se
 genes that are present in all ExpressionSets until reaching the specified limit or
 exhausting all common genes.
 }
+\keyword{internal}

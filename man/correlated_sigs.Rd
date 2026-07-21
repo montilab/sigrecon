@@ -16,3 +16,4 @@ correlated_sigs(corr_mat, seeds, limit = 30)
 \description{
 Recontextualize seed signatures with correlation based neighbors
 }
+\keyword{internal}

@@ -21,3 +21,4 @@ A binary matrix where rows represent genes in the graph and columns represent se
 \description{
 This function creates a binary matrix representing seed genes in the context of a graph.
 }
+\keyword{internal}

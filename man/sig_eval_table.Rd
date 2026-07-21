@@ -2,7 +2,7 @@
 % Please edit documentation in R/baseline_evaluation.R
 \name{sig_eval_table}
 \alias{sig_eval_table}
-\title{Evaluate Signature Prediction}
+\title{Evaluating recontextualization methods}
 \usage{
 sig_eval_table(
   source_sigs,

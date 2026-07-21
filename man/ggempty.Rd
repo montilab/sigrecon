@@ -12,3 +12,4 @@ A ggplot object
 \description{
 An empty ggplot
 }
+\keyword{internal}

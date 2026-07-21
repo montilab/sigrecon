@@ -25,3 +25,4 @@ The function calculates the variability of each gene using the specified functio
 Genes are then sorted in descending order of variability. If \code{filter_zero} is TRUE,
 genes with zero variance are removed before ranking.
 }
+\keyword{internal}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/util.R
 \name{sig_filter_fn}
 \alias{sig_filter_fn}
-\title{Filter Significant Genes by Perturbation}
+\title{Extract DEGs from a Differential Expression Table}
 \usage{
 sig_filter_fn(
   diff_table,

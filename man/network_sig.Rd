@@ -2,7 +2,7 @@
 % Please edit documentation in R/baseline_methods.R
 \name{network_sig}
 \alias{network_sig}
-\title{Finds a simulated network signature}
+\title{Network-propagation based Recontextualization.}
 \usage{
 network_sig(
   ig,
@@ -42,5 +42,5 @@ network_sig(
 vector of gene strings
 }
 \description{
-Finds a simulated network signature
+Network-propagation based Recontextualization.
 }

@@ -6,6 +6,7 @@
 #' @param matrix A square matrix.
 #'
 #' @return A matrix of the same dimensions as the input, with diagonal elements set to zero.
+#' @keywords internal
 diag_zero <- function(matrix) {
   diag(matrix) <- 0
   return(matrix)
@@ -29,7 +30,8 @@ diag_zero <- function(matrix) {
 #' 3. Returns a binary adjacency matrix where 1 indicates a consensus connection and 0 indicates no consensus.
 #'
 #' @importFrom purrr reduce
-consensus_net <- function(list_of_nets, threshold=0.9) {
+#' @keywords internal
+consensus_net <- function(list_of_nets, threshold = 0.9) {
   ### List of nets: A list of adjacency matrices
   avg_adj <- reduce(list_of_nets, `+`) / length(list_of_nets)
   threshed_adj <- (avg_adj > threshold) * 1
@@ -51,6 +53,7 @@ consensus_net <- function(list_of_nets, threshold=0.9) {
 #' @details
 #' If a valid power estimate is found in the input, it is returned. If the power estimate is NA,
 #' a default value of 6 is returned. The function prints a message indicating which power is being used.
+#' @keywords internal
 sft.check <- function(sft) {
   beta <- sft$powerEstimate
   if (is.na(beta)) {
@@ -81,28 +84,27 @@ sft.check <- function(sft) {
 #' 3. Optionally sets the diagonal to zero and/or converts the result to an igraph object.
 #'
 #' @importFrom doParallel registerDoParallel
-wgcna.power <- function(cor_mat,
-                        cores=1,
-                        diag_zero=TRUE) {
-
+#' @keywords internal
+wgcna.power <- function(cor_mat, cores = 1, diag_zero = TRUE) {
   if (!requireNamespace("WGCNA", quietly = TRUE)) {
-    stop("The 'WGCNA' package is required for wgcna.power(). Install it with BiocManager::install('WGCNA').")
+    stop(
+      "The 'WGCNA' package is required for wgcna.power(). Install it with BiocManager::install('WGCNA')."
+    )
   }
 
   # Set parallel computing environment
-  doParallel::registerDoParallel(cores=cores)
+  doParallel::registerDoParallel(cores = cores)
 
   # Pick soft threshold via scale-free fit
-  sft <- WGCNA::pickSoftThreshold.fromSimilarity(similarity=cor_mat)
+  sft <- WGCNA::pickSoftThreshold.fromSimilarity(similarity = cor_mat)
 
   # Check selected power
   beta <- sft.check(sft)
 
   # Construct co-expression similarity
-  adj <- WGCNA::adjacency.fromSimilarity(similarity=cor_mat,
-                                         power=beta)
+  adj <- WGCNA::adjacency.fromSimilarity(similarity = cor_mat, power = beta)
 
-  if(diag_zero) {
+  if (diag_zero) {
     adj <- diag_zero(adj)
   }
 
@@ -139,58 +141,72 @@ wgcna.power <- function(cor_mat,
 #' @importFrom igraph graph_from_adjacency_matrix
 #'
 #' @export
-wgcna.adj <- function(mat,
-                      min.sft=0.85,
-                      beta=NULL,
-                      cores=1,
-                      cor.fn=c("bicor", "cor"),
-                      cor.type=c("unsigned", "signed hybrid", "signed"),
-                      powers=c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
-                      igraph=FALSE,
-                      diag_zero=FALSE) {
+wgcna.adj <- function(
+  mat,
+  min.sft = 0.85,
+  beta = NULL,
+  cores = 1,
+  cor.fn = c("bicor", "cor"),
+  cor.type = c("unsigned", "signed hybrid", "signed"),
+  powers = c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
+  igraph = FALSE,
+  diag_zero = FALSE
+) {
   if (!requireNamespace("WGCNA", quietly = TRUE)) {
-    stop("The 'WGCNA' package is required for wgcna.adj(). Install it with BiocManager::install('WGCNA').")
+    stop(
+      "The 'WGCNA' package is required for wgcna.adj(). Install it with BiocManager::install('WGCNA')."
+    )
   }
 
   # Ad hoc namespace changes
-  bicor = WGCNA::bicor
-  cor = WGCNA::bicor
+  bicor <- WGCNA::bicor
+  cor <- WGCNA::bicor
 
   # Handle arguments
   args <- as.list(environment())
   cor.fn <- match.arg(cor.fn)
   cor.type <- match.arg(cor.type)
   # Correlation options
-  if (cor.fn == "cor") cor.options = list(use="p")
-  if (cor.fn == "bicor") cor.options = list(pearsonFallback="individual")
+  if (cor.fn == "cor") {
+    cor.options <- list(use = "p")
+  }
+  if (cor.fn == "bicor") {
+    cor.options <- list(pearsonFallback = "individual")
+  }
 
   # Set parallel computing environment
-  doParallel::registerDoParallel(cores=cores)
+  doParallel::registerDoParallel(cores = cores)
 
   # Pick soft threshold via scale-free fit
   if (is.null(beta)) {
-    sft <- WGCNA::pickSoftThreshold(data=mat,
-                                    corFnc=cor.fn,
-                                    RsquaredCut=min.sft,
-                                    powerVector=powers)
+    sft <- WGCNA::pickSoftThreshold(
+      data = mat,
+      corFnc = cor.fn,
+      RsquaredCut = min.sft,
+      powerVector = powers
+    )
 
     # Check selected power
     beta <- sft.check(sft)
   }
 
   # Construct co-expression similarity
-  adj <- WGCNA::adjacency(datExpr=mat,
-                          power=beta,
-                          corFnc=cor.fn,
-                          type=cor.type,
-                          corOptions=cor.options)
-  if(diag_zero) {
+  adj <- WGCNA::adjacency(
+    datExpr = mat,
+    power = beta,
+    corFnc = cor.fn,
+    type = cor.type,
+    corOptions = cor.options
+  )
+  if (diag_zero) {
     adj <- diag_zero(adj)
   }
-  if(igraph) {
-    adj <- igraph::graph_from_adjacency_matrix(adj, weighted=TRUE, mode="undirected")
+  if (igraph) {
+    adj <- igraph::graph_from_adjacency_matrix(
+      adj,
+      weighted = TRUE,
+      mode = "undirected"
+    )
   }
   return(adj)
 }
-
-

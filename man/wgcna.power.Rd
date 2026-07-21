@@ -28,3 +28,4 @@ This function performs the following steps:
 \item Optionally sets the diagonal to zero and/or converts the result to an igraph object.
 }
 }
+\keyword{internal}

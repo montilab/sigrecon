@@ -16,3 +16,4 @@ v.correlated_sigs(corr_mats, seeds, limit = 30)
 \description{
 Recontextualize seed signatures with correlation based neighbors
 }
+\keyword{internal}

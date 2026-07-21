@@ -2,7 +2,7 @@
 % Please edit documentation in R/baseline_methods.R
 \name{recontextualize}
 \alias{recontextualize}
-\title{Recontextualize signatures with a selected baseline method}
+\title{Recontextualize signatures with one of either networkProp, projectCor, or mean.}
 \usage{
 recontextualize(
   method = c("networkProp", "projectCor", "mean"),
@@ -119,5 +119,5 @@ for a gene to be retained when \code{min_count} is provided.}
 A named list of recontextualized gene signatures.
 }
 \description{
-Recontextualize signatures with a selected baseline method
+Recontextualize signatures with one of either networkProp, projectCor, or mean.
 }

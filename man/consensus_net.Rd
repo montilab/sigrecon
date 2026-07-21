@@ -26,3 +26,4 @@ The function performs the following steps:
 \item Returns a binary adjacency matrix where 1 indicates a consensus connection and 0 indicates no consensus.
 }
 }
+\keyword{internal}

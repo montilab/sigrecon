@@ -23,3 +23,4 @@ The function first calculates the full distance matrix for the graph using igrap
 Then, for each set of nodes in \code{node_list}, it extracts the relevant submatrix and returns
 the lower triangular part, which represents all pairwise distances within that set.
 }
+\keyword{internal}

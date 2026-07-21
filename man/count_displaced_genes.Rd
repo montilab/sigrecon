@@ -2,8 +2,7 @@
 % Please edit documentation in R/util.R
 \name{count_displaced_genes}
 \alias{count_displaced_genes}
-\title{Count number of displaced seeds
-Note: This not commutative. Num_displaced is the number of genes that are from the original seed that are not in the recon.}
+\title{Count number of displaced seeds}
 \usage{
 count_displaced_genes(recon_sig, seed_sig)
 }
@@ -16,6 +15,6 @@ count_displaced_genes(recon_sig, seed_sig)
 Named list for which each entry is a list with two elements: displaced seed genes, and non-displaced seed genes
 }
 \description{
-Count number of displaced seeds
-Note: This not commutative. Num_displaced is the number of genes that are from the original seed that are not in the recon.
+Quantifies the number of genes from the original source signature that are still in the recontextualized signature \code{not_displaced},
+and the number of genes that are \code{displaced}. Note: This operation is not commutative.
 }

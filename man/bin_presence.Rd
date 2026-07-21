@@ -21,4 +21,6 @@ indicating whether at least one value falls into each bin of size 10
 \examples{
 vec <- c(3, 15, 27, 45, 58, 99)
 bin_presence(vec)
+
 }
+\keyword{internal}

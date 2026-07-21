@@ -15,3 +15,4 @@ A matrix of the same dimensions as the input, with diagonal elements set to zero
 \description{
 This function sets the diagonal elements of a matrix to zero.
 }
+\keyword{internal}

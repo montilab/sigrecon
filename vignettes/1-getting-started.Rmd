@@ -1,8 +1,8 @@
 ---
-title: "Getting Started with sigrecon"
+title: "Getting Started with sigRecon"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting Started with sigrecon}
+  %\VignetteIndexEntry{Getting Started with sigRecon}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -38,26 +38,26 @@ real-data example, requiring no downloads or external setup.
 BiocManager::install("montilab/sigrecon", dependencies = TRUE)
 ```
 
-```{r setup}
+```{r setup, message=FALSE}
 library(sigrecon)
 library(SummarizedExperiment)
 ```
 
-## The demo data
+## Demo Data
 
 `sigrecon` bundles small, real-data recontextualization demos for each of the
 datasets used in its benchmarking study (SciPlex, Tahoe, DrugMatrix,
 Perturb-seq) -- see `?demo_datasets` for all four. This vignette uses the
-SciPlex triple:
+SciPlex demo data:
 
-- **`demo_sciplex_sigs`** -- real SciPlex K562 signatures (top differentially
+- **`demo_sciplex_sigs`** -- SciPlex K562 signatures (top differentially
   expressed genes per drug), treated here as **source** signatures, as if
   defined in a different biological context than the one we're
   recontextualizing into.
-- **`demo_sciplex_se`** -- real SciPlex A549 expression data, representing
+- **`demo_sciplex_se`** -- SciPlex A549 expression data, representing
   the **target** context we want to recontextualize the source signatures
   into.
-- **`demo_sciplex_true_sigs`** -- the real A549 signatures for the same
+- **`demo_sciplex_true_sigs`** -- SciPlex A549 signatures for the same
   drugs, used as **ground truth** to check how well recontextualization
   worked.
 
@@ -67,14 +67,14 @@ length(demo_sciplex_sigs)
 demo_sciplex_sigs[["Panobinostat (LBH589)"]][1:5]
 ```
 
-Both `demo_sciplex_se` and `demo_sciplex_true_sigs` are built from a set of
-A549 drugs *disjoint* from the drugs actually being evaluated -- so nothing
+Note `demo_sciplex_se` contains a *disjoint* set of drug profiles from those in
+`demo_sciplex_sigs` and `demo_sciplex_true_sigs` -- so nothing
 about the specific perturbations you're trying to recontextualize leaks into
-the expression data or network used to reconstruct them.
+the expression data used to predict new signatures.
 
-## Method 1: `projectCor()`
+## Method 1: Projection-based
 
-`projectCor()` reconstructs a signature in a new context by scoring each
+`projectCor()` predicts a signature in a new context by scoring each
 sample against the source signature (via GSVA or eigengene scoring) and then
 ranking genes by their correlation with that per-sample score. The
 highest-correlated genes become the recontextualized signature.
@@ -87,7 +87,7 @@ length(recon_projectcor)
 recon_projectcor[["Panobinostat (LBH589)"]][1:5]
 ```
 
-## Method 2: network propagation
+## Method 2: Network Propagation
 
 Network propagation works differently: `wgcna.adj()` first learns a gene
 co-expression network from the target-context expression data, then
@@ -95,7 +95,7 @@ co-expression network from the target-context expression data, then
 random walk with restart) to find the genes most "reachable" from the seed
 genes -- these become the recontextualized signature.
 
-```{r netprop}
+```{r netprop, message=FALSE}
 target_expr <- t(assay(demo_sciplex_se))
 network <- wgcna.adj(target_expr, cor.type = "signed hybrid", diag_zero = TRUE, igraph = TRUE)
 
@@ -152,24 +152,19 @@ data.frame(
 On this demo, results are mixed: `projectCor()` improves average Jaccard
 overlap with the true A549 signature, but average enrichment (NES) is
 actually slightly *lower* than just reusing the K562 signature unmodified.
-This is a realistic outcome, not a bug -- recontextualization does not
+This is a realistic outcome, recontextualization does not
 always outperform the no-change baseline for every method/metric/dataset
-combination, and this demo's disjoint, sample-limited design (see
-`?demo_datasets`) makes it a harder, noisier test than the full-scale
-datasets in the package's benchmarking study. Try `network_sig()`'s output
-(`recon_netprop`) in place of `recon_projectcor` above to compare methods,
-or see the full results for all datasets and methods in the package's
-companion analysis repository. `sigrecon::paired_eval_table()` formalizes
+combination (see the paper for more details on benchmarking results).
+
+`sigrecon::paired_eval_table()` formalizes
 the no-change-vs-recontextualized comparison shown here, including paired
 significance testing, for larger benchmarking workflows.
 
-## Next steps
+## Next Steps
 
-- `?demo_datasets` for the other three bundled demo triples (Tahoe,
-  DrugMatrix, Perturb-seq)
-- `?get_dataset` and `?list_datasets` for the full-size datasets these demos
-  are subsetted from
-- `?sig_filter_fn` for converting your own differential expression results
-  into the signature format used throughout this vignette
-- The package README covers bringing your own signature and expression data
-  in more detail, including gene-ID-namespace and normalization gotchas.
+- The [Network Propagation in Depth](2-network-propagation-details.html)
+  vignette for `network_sig()`'s options
+- The [BYOD](3-bring-your-own-signature.html) vignette for bringing your own
+  perturbational data and signatures.
+- The [Benchmarking Philosophy](4-benchmarking-and-splits.html) vignette for
+  how we benchmark methods by taking into account target data availability.

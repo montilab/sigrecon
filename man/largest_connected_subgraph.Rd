@@ -15,3 +15,4 @@ An igraph object representing the largest connected component of the input graph
 \description{
 Extract Largest Connected Subgraph
 }
+\keyword{internal}

@@ -29,3 +29,4 @@ data <- c("TP53", "BRCA1", "EGFR")
 result <- fgsea_wrapper(ref, data)
 
 }
+\keyword{internal}

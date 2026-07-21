@@ -33,3 +33,4 @@ Extracts a signature from a (gene x seed) matrix of stationary probability value
 This is the recontextualized signature.
 If doing ks.test, you don't need to find the top_n. Just find ks.test(original, recontextualized ranking) before and after.
 }
+\keyword{internal}

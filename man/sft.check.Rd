@@ -20,3 +20,4 @@ and returns an appropriate power value.
 If a valid power estimate is found in the input, it is returned. If the power estimate is NA,
 a default value of 6 is returned. The function prints a message indicating which power is being used.
 }
+\keyword{internal}

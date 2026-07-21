@@ -1,0 +1,92 @@
+---
+title: "Bringing Your Own Signature and Expression Data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Bringing Your Own Signature and Expression Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, message=FALSE}
+library(sigrecon)
+library(SummarizedExperiment)
+```
+
+The [Getting Started](getting-started.html) vignette uses `sigrecon`'s
+bundled demo data. This vignette instead walks through taking **your own**
+differential expression (DE) results and expression data all the way through
+`projectCor()`/`network_sig()` and `sig_eval_table()`.
+
+## Extracting DEGs from a differential expression table
+
+`sigrecon` represents a signature as a named list, one element per
+perturbation, each a list with `up` (top significant upregulated genes) and
+`up_full` (all genes, ranked). `sig_filter_fn()` builds this from a DE
+results table.
+
+### DESeq2 Table
+
+`DESeq2::results()` output uses `log2FoldChange` and `padj` column names,
+and typically has gene IDs as rownames rather than a column -- move them into
+a column first. Here's a small simulated example with two perturbations:
+
+```{r deseq2-example}
+set.seed(1)
+genes <- paste0("ENSG", sprintf("%06d", 1:40))
+
+deseq2_table <- data.frame(
+  ensembl_id     = rep(genes, times = 2),
+  product        = rep(c("drugA", "drugB"), each = 40),
+  log2FoldChange = c(rnorm(40, mean = 1), rnorm(40, mean = -1)),
+  padj           = runif(80, 0, 0.2)
+)
+
+deseq2_sigs <- sig_filter_fn(
+  deseq2_table,
+  perts      = c("drugA", "drugB"),
+  pert_col   = "product",
+  log2fc_col = "log2FoldChange",
+  pval_col   = "padj",
+  geneid_col = "ensembl_id",
+  limit      = 20
+)
+
+str(deseq2_sigs$drugA, max.level = 1)
+```
+
+### Seurat `FindMarkers()` Table 
+
+Seurat's `FindMarkers()` output uses `avg_log2FC` and `p_val_adj` -- these
+happen to be `sig_filter_fn()`'s defaults, so no column-name arguments are
+needed if your table already has a perturbation-label column named
+`"product"` and gene IDs as rownames-turned-column named `"ensembl_id"`
+(otherwise, override `pert_col`/`geneid_col` the same way):
+
+```{r seurat-example}
+seurat_table <- data.frame(
+  ensembl_id = rep(genes, times = 2),
+  product    = rep(c("drugA", "drugB"), each = 40),
+  avg_log2FC = c(rnorm(40, mean = 1), rnorm(40, mean = -1)),
+  p_val_adj  = runif(80, 0, 0.2)
+)
+
+seurat_sigs <- sig_filter_fn(seurat_table, perts = c("drugA", "drugB"), limit = 20)
+str(seurat_sigs$drugA, max.level = 1)
+```
+
+`sig_filter_fn()` can be used on any differential expression output (limma, DESeq2, Mast)
+as long as you tell it which columns hold the perturbation label, log2 fold-change, p-value, and gene ID via `pert_col`/`log2fc_col`/`pval_col`/`geneid_col`.
+
+## Next steps
+
+- The [Getting Started](getting-started.html) vignette for a walkthrough
+  using real bundled data, including a no-change baseline comparison
+- `?demo_datasets` for real source/target signature pairs across four
+  datasets, useful as a reference for what well-formed input looks like

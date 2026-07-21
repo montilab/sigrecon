@@ -14,3 +14,4 @@ annotate_prob_vec(prob_vec, seeds)
 \description{
 Returns a dataframe object with the stationary probability value and column indicating whether gene was a seed
 }
+\keyword{internal}
