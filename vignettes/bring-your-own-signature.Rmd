@@ -1,0 +1,188 @@
+---
+title: "Bringing Your Own Signature and Expression Data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Bringing Your Own Signature and Expression Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(sigrecon)
+library(SummarizedExperiment)
+```
+
+The [Getting Started](getting-started.html) vignette uses `sigrecon`'s
+bundled demo data. This vignette instead walks through taking **your own**
+differential expression (DE) results and expression data all the way through
+`projectCor()`/`network_sig()` and `sig_eval_table()`.
+
+## 1. From a DE table to a signature
+
+`sigrecon` represents a signature as a named list, one element per
+perturbation, each a list with `up` (top significant upregulated genes) and
+`up_full` (all genes, ranked). `sig_filter_fn()` builds this from a DE
+results table.
+
+### DESeq2-shaped input
+
+`DESeq2::results()` output uses `log2FoldChange` and `padj` column names,
+and typically has gene IDs as rownames rather than a column -- move them into
+a column first. Here's a small simulated example with two perturbations:
+
+```{r deseq2-example}
+set.seed(1)
+genes <- paste0("ENSG", sprintf("%06d", 1:40))
+
+deseq2_table <- data.frame(
+  ensembl_id     = rep(genes, times = 2),
+  product        = rep(c("drugA", "drugB"), each = 40),
+  log2FoldChange = c(rnorm(40, mean = 1), rnorm(40, mean = -1)),
+  padj           = runif(80, 0, 0.2)
+)
+
+deseq2_sigs <- sig_filter_fn(
+  deseq2_table,
+  perts      = c("drugA", "drugB"),
+  pert_col   = "product",
+  log2fc_col = "log2FoldChange",
+  pval_col   = "padj",
+  geneid_col = "ensembl_id",
+  limit      = 20
+)
+
+str(deseq2_sigs$drugA, max.level = 1)
+```
+
+### Seurat `FindMarkers()`-shaped input
+
+Seurat's `FindMarkers()` output uses `avg_log2FC` and `p_val_adj` -- these
+happen to be `sig_filter_fn()`'s defaults, so no column-name arguments are
+needed if your table already has a perturbation-label column named
+`"product"` and gene IDs as rownames-turned-column named `"ensembl_id"`
+(otherwise, override `pert_col`/`geneid_col` the same way):
+
+```{r seurat-example}
+seurat_table <- data.frame(
+  ensembl_id = rep(genes, times = 2),
+  product    = rep(c("drugA", "drugB"), each = 40),
+  avg_log2FC = c(rnorm(40, mean = 1), rnorm(40, mean = -1)),
+  p_val_adj  = runif(80, 0, 0.2)
+)
+
+seurat_sigs <- sig_filter_fn(seurat_table, perts = c("drugA", "drugB"), limit = 20)
+str(seurat_sigs$drugA, max.level = 1)
+```
+
+**The lesson**: `sig_filter_fn()` doesn't care which DE tool produced your
+table -- DESeq2, `limma::topTable()`, Seurat's `FindMarkers()` (any test,
+including MAST), or something else entirely -- as long as you tell it which
+columns hold the perturbation label, log2 fold-change, p-value, and gene ID
+via `pert_col`/`log2fc_col`/`pval_col`/`geneid_col`. Mixing DE tools across
+datasets in the same analysis (e.g. DESeq2 for one cell line, MAST for
+another) just means passing different arguments per call -- there's no need
+to reconcile the tables into one schema first.
+
+## 2. Gene ID namespace harmonization
+
+A second, easy-to-miss issue: your DE table's gene IDs need to be in the
+**same namespace** as whatever you're comparing against (a target signature,
+or your expression data's rownames) -- both Ensembl IDs, or both HGNC gene
+symbols, not a mix. `projectCor()`/`network_sig()` match genes by exact
+string, so a namespace mismatch doesn't error -- it silently produces empty
+or near-empty results.
+
+If your DE table has gene symbols but you need Ensembl IDs (or vice versa),
+join against a symbol/ID mapping table before calling `sig_filter_fn()`. A
+common source for this mapping is an annotation package (e.g.
+`org.Hs.eg.db`) or, if you built your expression data from a `Seurat`
+object, its own feature metadata:
+
+```{r id-mapping, eval = FALSE}
+# Seurat objects often carry a symbol <-> Ensembl mapping in feature metadata
+id_map <- seurat_obj@assays$RNA@meta.features |>
+  tibble::rownames_to_column("ensembl_id") |>
+  dplyr::select(ensembl_id, feature_name)
+
+diff_table <- diff_table |>
+  dplyr::left_join(id_map, by = c("gene_symbol" = "feature_name"))
+```
+
+Some symbols map to more than one Ensembl ID or vice versa; inspect
+`id_map` for duplicates before joining, and decide how to resolve them (e.g.
+keep the most-variable feature) rather than letting the join silently
+fan out rows.
+
+## 3. Recontextualizing your signature
+
+Once you have a signature in the `up`/`up_full` format, the rest of the
+workflow is the same as the [Getting Started](getting-started.html) vignette
+-- just with your own expression data in place of the bundled demo. Building
+a small simulated `SummarizedExperiment` over the same gene universe here to
+keep this vignette self-contained:
+
+```{r my-se}
+n_samples <- 20
+expr <- matrix(
+  rnorm(length(genes) * n_samples, mean = 5), nrow = length(genes), ncol = n_samples,
+  dimnames = list(genes, paste0("sample", 1:n_samples))
+)
+
+my_se <- SummarizedExperiment(
+  assays  = list(logcounts = expr),
+  colData = DataFrame(sample_id = colnames(expr))
+)
+```
+
+`projectCor()`/`network_sig()`'s `sigs`/`seeds` arguments want just the
+`up` gene vectors, not the full `up`/`up_full` list:
+
+```{r recontextualize}
+my_sigs_up <- lapply(deseq2_sigs, function(x) x$up)
+
+recon_projectcor <- projectCor(my_se, my_sigs_up, score = "gsva")
+
+my_mat <- t(assay(my_se))
+my_network <- wgcna.adj(my_mat, cor.type = "signed hybrid", diag_zero = TRUE, igraph = TRUE)
+recon_netprop <- network_sig(my_network, seeds = my_sigs_up, sig = "rwr")
+```
+
+## 4. Benchmarking
+
+`sig_eval_table()`'s `true_sigs` argument expects the full `up`/`up_full`
+shape (it needs the full ranked list to compute rank-based enrichment), so
+pass the `sig_filter_fn()` output directly rather than the `up`-only list
+used above:
+
+```{r benchmark}
+eval_df <- sig_eval_table(
+  source_sigs = my_sigs_up,
+  pred_sigs   = recon_projectcor,
+  true_sigs   = seurat_sigs,
+  source      = "my_source",
+  target      = "my_target"
+)
+
+head(eval_df[, c("gene", "jacc", "NES", "padj")])
+```
+
+(This example uses `seurat_sigs` as a stand-in "ground truth" purely to
+demonstrate the call shape -- in a real analysis, `true_sigs` would be an
+independently-derived signature for the actual target context you're
+recontextualizing into, not another simulated signature over the same random
+data.)
+
+## Next steps
+
+- `?sig_filter_fn` for the full parameter reference
+- The [Getting Started](getting-started.html) vignette for a walkthrough
+  using real bundled data, including a no-change baseline comparison
+- `?demo_datasets` for real source/target signature pairs across four
+  datasets, useful as a reference for what well-formed input looks like
