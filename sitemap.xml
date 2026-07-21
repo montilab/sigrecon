@@ -1,11 +1,11 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://montilab.github.io/sigrecon/404.html</loc></url>
 <url><loc>https://montilab.github.io/sigrecon/LICENSE-text.html</loc></url>
-<url><loc>https://montilab.github.io/sigrecon/articles/benchmarking-and-splits.html</loc></url>
-<url><loc>https://montilab.github.io/sigrecon/articles/bring-your-own-signature.html</loc></url>
-<url><loc>https://montilab.github.io/sigrecon/articles/getting-started.html</loc></url>
+<url><loc>https://montilab.github.io/sigrecon/articles/1-getting-started.html</loc></url>
+<url><loc>https://montilab.github.io/sigrecon/articles/2-network-propagation-details.html</loc></url>
+<url><loc>https://montilab.github.io/sigrecon/articles/3-bring-your-own-signature.html</loc></url>
+<url><loc>https://montilab.github.io/sigrecon/articles/4-benchmarking-and-splits.html</loc></url>
 <url><loc>https://montilab.github.io/sigrecon/articles/index.html</loc></url>
-<url><loc>https://montilab.github.io/sigrecon/articles/network-propagation-details.html</loc></url>
 <url><loc>https://montilab.github.io/sigrecon/authors.html</loc></url>
 <url><loc>https://montilab.github.io/sigrecon/index.html</loc></url>
 <url><loc>https://montilab.github.io/sigrecon/reference/all_dists_nodesets.html</loc></url>

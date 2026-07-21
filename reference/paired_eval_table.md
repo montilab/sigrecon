@@ -1,4 +1,4 @@
-# Pair a Recontextualization Evaluation Table With a No-Change Baseline
+# Evaluate recontextualization methods relative to no-change baseline
 
 Merges a
 [`sig_eval_table()`](https://montilab.github.io/sigrecon/reference/sig_eval_table.md)

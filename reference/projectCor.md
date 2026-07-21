@@ -1,4 +1,4 @@
-# Reconstruct Gene Signatures Using Projection Scores
+# Projection based Recontextualization
 
 This function reconstructs gene signatures based on their correlation
 with per-sample projection scores computed from the input signatures.

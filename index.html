@@ -35,10 +35,10 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="articles/benchmarking-and-splits.html">Benchmarking Design: Splits and Evaluation Metrics</a></li>
-    <li><a class="dropdown-item" href="articles/bring-your-own-signature.html">Bringing Your Own Signature and Expression Data</a></li>
-    <li><a class="dropdown-item" href="articles/getting-started.html">Getting Started with sigrecon</a></li>
-    <li><a class="dropdown-item" href="articles/network-propagation-details.html">Network Propagation in Depth</a></li>
+<li><a class="dropdown-item" href="articles/1-getting-started.html">Getting Started with sigRecon</a></li>
+    <li><a class="dropdown-item" href="articles/2-network-propagation-details.html">Network Propagation in Depth</a></li>
+    <li><a class="dropdown-item" href="articles/3-bring-your-own-signature.html">Bringing Your Own Signature and Expression Data</a></li>
+    <li><a class="dropdown-item" href="articles/4-benchmarking-and-splits.html">Benchmarking: Controlling for target-data availability</a></li>
   </ul>
 </li>
       </ul>
@@ -56,23 +56,26 @@
 <div class="row">
   <main id="main" class="col-md-9">
 <div class="section level1">
-<div class="page-header"><h1 id="signature-recontextualization">Signature Recontextualization<a class="anchor" aria-label="anchor" href="#signature-recontextualization"></a>
+<div class="page-header"><h1 id="sigrecon-signature-recontextualization">sigRecon: Signature Recontextualization<a class="anchor" aria-label="anchor" href="#sigrecon-signature-recontextualization"></a>
 </h1></div>
-<p><strong>Signature recontextualization</strong>: given a gene signature for a perturbation in one biological context, predict the corresponding signature for that same perturbation in a different context. This package provides two baseline methods — projection-based scoring (<code><a href="reference/projectCor.html">projectCor()</a></code>) and network propagation (<code><a href="reference/wgcna.adj.html">wgcna.adj()</a></code> + <code><a href="reference/network_sig.html">network_sig()</a></code>) — plus benchmarking tools and data to evaluate recontextualization methods generally.</p>
+<p>The signature recontextualization problem describes a simple goal in computational biology: Given a gene signature X of a genetic or chemical perturbation in model organism Y, what is the corresponding gene signature of the same perturbation in model organism Z?</p>
+<p>Any method that is able to input a ranked list of genes from one biological context and output another ranked list of genes for another context performs this task of ‘signature recontextualization’.</p>
+<p>This repository contains benchmarking tasks and data for evaluating signature recontextualization (as reported in <a href="https://github.com/montilab/sigRecon_Benchmarking" class="external-link">sigrecon_benchmarking</a>), plus implementations of two of our own methods: projection-based scoring (<code><a href="reference/projectCor.html">projectCor()</a></code>) and network propagation (<code><a href="reference/network_sig.html">network_sig()</a></code>).</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
+<p>Note: BiocManager installer is used to handle dependences. This package is currently not hosted on Bioconductor.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">BiocManager</span><span class="fu">::</span><span class="fu">install</span><span class="op">(</span><span class="st">"montilab/sigrecon"</span>, dependencies <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
+<h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<p>Runs entirely on bundled real-data demo objects (<code>demo_sciplex_sigs</code>/<code>_se</code>/<code>_true_sigs</code>; one such triple exists per dataset — Perturb-seq, SciPlex, DrugMatrix, Tahoe):</p>
+<p>The example below runs entirely on a small, bundled real-data example: <code>demo_sciplex_sigs</code> (source-context signatures), <code>demo_sciplex_se</code> (target-context expression), and <code>demo_sciplex_true_sigs</code> (target-context ground truth). Demo data is bundled for each dataset in the benchmarking study (Perturb-seq, SciPlex, DrugMatrix, Tahoe); full pseudobulk datasets are on Zenodo.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/montilab/sigrecon" class="external-link">sigrecon</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Recontextualize with projectCor() (projection-based scoring)</span></span>
+<span><span class="co"># Recontextualize with projectCor</span></span>
 <span><span class="va">recon_projectcor</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/projectCor.html">projectCor</a></span><span class="op">(</span><span class="va">demo_sciplex_se</span>, <span class="va">demo_sciplex_sigs</span>, score <span class="op">=</span> <span class="st">"gsva"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Or with network propagation</span></span>
@@ -89,12 +92,6 @@
 <span>  target      <span class="op">=</span> <span class="st">"sciplex_a549"</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">eval_df</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gene"</span>, <span class="st">"jacc"</span>, <span class="st">"NES"</span>, <span class="st">"padj"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span></code></pre></div>
-<p>See <code><a href="articles/getting-started.html">vignette("getting-started", package = "sigrecon")</a></code> for a full walkthrough, <code><a href="reference/demo_datasets.html">?demo_datasets</a></code> for the other three demo triples, and <code><a href="reference/list_datasets.html">list_datasets()</a></code>/<code><a href="reference/get_dataset.html">get_dataset()</a></code> for the full-size source datasets (also on Zenodo).</p>
-</div>
-<div class="section level2">
-<h2 id="bring-your-own-data">Bring your own data<a class="anchor" aria-label="anchor" href="#bring-your-own-data"></a>
-</h2>
-<p><code><a href="reference/projectCor.html">projectCor()</a></code>/<code><a href="reference/network_sig.html">network_sig()</a></code> work on any data, not just the demos. Signatures are a named list of gene-ID vectors (<code><a href="reference/sig_filter_fn.html">sig_filter_fn()</a></code> builds these from a DE table). Expression: <code><a href="reference/projectCor.html">projectCor()</a></code> wants a <code>SummarizedExperiment</code> (genes × samples); <code><a href="reference/wgcna.adj.html">wgcna.adj()</a></code> wants a plain matrix, <strong>transposed</strong> (samples × genes) — normalize raw counts and drop zero-variance genes first. Gene IDs must share a namespace with your signature. A full worked example is planned as a vignette; see <code><a href="reference/sig_filter_fn.html">?sig_filter_fn</a></code>, <code><a href="reference/projectCor.html">?projectCor</a></code>, <code><a href="reference/wgcna.adj.html">?wgcna.adj</a></code> in the meantime.</p>
 </div>
 </div>
 

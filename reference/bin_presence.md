@@ -26,6 +26,5 @@ one value in `x` falls into the corresponding bin, otherwise `FALSE`.
 ``` r
 vec <- c(3, 15, 27, 45, 58, 99)
 bin_presence(vec)
-#>   1-10  11-20  21-30  31-40  41-50  51-60  61-70  71-80  81-90 91-100 
-#>   TRUE   TRUE   TRUE  FALSE   TRUE   TRUE  FALSE  FALSE  FALSE   TRUE 
+#> Error in bin_presence(vec): could not find function "bin_presence"
 ```

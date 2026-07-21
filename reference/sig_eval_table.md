@@ -1,4 +1,4 @@
-# Evaluate Signature Prediction
+# Evaluating recontextualization methods
 
 This function calculates various evaluation metrics for predicted gene
 signatures against true (ground truth) gene signatures, given a source

@@ -1,6 +1,6 @@
-# Finds a simulated network signature
+# Network-propagation based Recontextualization.
 
-Finds a simulated network signature
+Network-propagation based Recontextualization.
 
 ## Usage
 

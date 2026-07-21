@@ -1,6 +1,7 @@
-# Recontextualize signatures with a selected baseline method
+# Recontextualize signatures with one of either networkProp, projectCor, or mean.
 
-Recontextualize signatures with a selected baseline method
+Recontextualize signatures with one of either networkProp, projectCor,
+or mean.
 
 ## Usage
 

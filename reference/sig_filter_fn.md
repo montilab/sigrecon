@@ -1,4 +1,4 @@
-# Filter Significant Genes by Perturbation
+# Extract DEGs from a Differential Expression Table
 
 Filters and ranks genes by significance for each perturbation in a
 differential expression table. Returns both all genes ranked by a

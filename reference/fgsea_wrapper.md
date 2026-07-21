@@ -39,4 +39,5 @@ ref <- c("TP53", "MYC", "BRCA1", "KRAS", "EGFR", "PTEN", "AKT1", "PIK3CA")
 # data = gene set to test for enrichment
 data <- c("TP53", "BRCA1", "EGFR")
 result <- fgsea_wrapper(ref, data)
+#> Error in fgsea_wrapper(ref, data): could not find function "fgsea_wrapper"
 ```

@@ -1,8 +1,9 @@
-# Count number of displaced seeds Note: This not commutative. Num_displaced is the number of genes that are from the original seed that are not in the recon.
+# Count number of displaced seeds
 
-Count number of displaced seeds Note: This not commutative.
-Num_displaced is the number of genes that are from the original seed
-that are not in the recon.
+Quantifies the number of genes from the original source signature that
+are still in the recontextualized signature `not_displaced`, and the
+number of genes that are `displaced`. Note: This operation is not
+commutative.
 
 ## Usage
 

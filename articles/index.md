@@ -2,11 +2,11 @@
 
 ### All vignettes
 
-- [Benchmarking Design: Splits and Evaluation
-  Metrics](https://montilab.github.io/sigrecon/articles/benchmarking-and-splits.md):
-- [Bringing Your Own Signature and Expression
-  Data](https://montilab.github.io/sigrecon/articles/bring-your-own-signature.md):
 - [Getting Started with
-  sigrecon](https://montilab.github.io/sigrecon/articles/getting-started.md):
+  sigRecon](https://montilab.github.io/sigrecon/articles/1-getting-started.md):
 - [Network Propagation in
-  Depth](https://montilab.github.io/sigrecon/articles/network-propagation-details.md):
+  Depth](https://montilab.github.io/sigrecon/articles/2-network-propagation-details.md):
+- [Bringing Your Own Signature and Expression
+  Data](https://montilab.github.io/sigrecon/articles/3-bring-your-own-signature.md):
+- [Benchmarking: Controlling for target-data
+  availability](https://montilab.github.io/sigrecon/articles/4-benchmarking-and-splits.md):

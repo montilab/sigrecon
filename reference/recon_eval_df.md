@@ -1,6 +1,6 @@
-# Evaluate recontextualized signatures
+# Network Propagation Helper
 
-Evaluate recontextualized signatures
+Network Propagation Helper
 
 ## Usage
 
