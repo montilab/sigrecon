@@ -37,5 +37,8 @@ Suggests:
     GSVA,
     Seurat,
     WGCNA,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
 Config/testthat/edition: 3
+VignetteBuilder: knitr
