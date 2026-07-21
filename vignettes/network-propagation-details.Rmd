@@ -1,0 +1,207 @@
+---
+title: "Network Propagation in Depth"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Network Propagation in Depth}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(sigrecon)
+library(SummarizedExperiment)
+```
+
+The [Getting Started](getting-started.html) vignette uses `network_sig()` with
+its defaults. This vignette goes deeper: how `wgcna.adj()` builds the
+network `network_sig()` operates on, the two different algorithms behind
+`sig = "corr"` vs. `sig = "rwr"`, and what each of `network_sig()`'s options
+(`p`, `avg_p`, `bootstrap`, `n_bootstraps`, `limit`) actually controls.
+
+We'll use the bundled SciPlex demo data throughout.
+
+```{r demo-data}
+dim(demo_sciplex_se)
+length(demo_sciplex_sigs)
+```
+
+## Building the network with `wgcna.adj()`
+
+`wgcna.adj()` builds a weighted gene co-expression network from an expression
+matrix (samples as rows, genes as columns -- note this is **transposed**
+relative to `SummarizedExperiment`'s gene-rows/sample-columns convention):
+
+```{r build-network}
+target_expr <- t(assay(demo_sciplex_se))
+
+network <- wgcna.adj(
+  target_expr,
+  cor.type  = "signed hybrid", # correlation sign handling -- see below
+  diag_zero = TRUE,            # zero out self-loops
+  igraph    = TRUE             # return an igraph object, not a raw matrix
+)
+
+network
+```
+
+A few of `wgcna.adj()`'s arguments worth knowing about:
+
+- **`cor.type`**: `"unsigned"` treats positive and negative correlations as
+  equally strong connections; `"signed"` only connects genes that move
+  *together*; `"signed hybrid"` (used here) is a common middle ground --
+  negative correlations are down-weighted rather than either kept at full
+  strength or discarded entirely.
+- **`cor.fn`**: `"bicor"` (biweight midcorrelation, the default) is more
+  robust to outliers than Pearson (`"cor"`) -- relevant for pseudobulk
+  expression data with a handful of replicates per condition.
+- **`min.sft`/`beta`/`powers`**: WGCNA networks raise the correlation matrix
+  to a soft-thresholding power to approximate a scale-free topology.
+  `wgcna.adj()` automatically searches `powers` for the smallest one
+  reaching `min.sft` fit; pass `beta` directly to skip that search if you
+  already know the power you want.
+- **`diag_zero`**: whether to zero the diagonal (self-correlation) before
+  returning -- almost always `TRUE`, since a gene being perfectly correlated
+  with itself is not informative for propagation.
+
+## `sig = "corr"` vs. `sig = "rwr"`: two different algorithms
+
+`network_sig()` supports two mechanically distinct ways of finding a
+seed signature's neighbors in the network:
+
+- **`sig = "corr"`**: directly uses the network's edge weights. For each
+  candidate gene, it averages that gene's correlation to every seed gene,
+  then keeps the top `limit` genes by that average. This is a single
+  lookup -- no iteration, no walking across the network -- so it's fast, but
+  it only "sees" genes with a direct (first-degree) connection to the seeds.
+- **`sig = "rwr"`** (random walk with restart): simulates a walker that
+  starts at the seed genes and, at each step, either moves to a
+  network-neighbor or teleports back to a seed gene (with probability `p`,
+  see below). Run to convergence, this produces a **stationary probability**
+  for every gene in the network -- how "reachable" it is from the seeds,
+  accounting for indirect (multi-hop) paths. The top genes by stationary
+  probability become the recontextualized signature.
+
+```{r corr-vs-rwr}
+one_seed <- demo_sciplex_sigs["Panobinostat (LBH589)"]
+
+sig_corr <- network_sig(network, seeds = one_seed, sig = "corr", limit = 30)
+sig_rwr  <- network_sig(network, seeds = one_seed, sig = "rwr", limit = 30)
+
+# How much do the two methods agree on which genes are "close" to the seed?
+length(intersect(sig_corr[[1]], sig_rwr[[1]]))
+jaccard(sig_corr[[1]], sig_rwr[[1]])
+```
+
+The two methods substantially disagree here -- `sig = "rwr"` can surface
+genes several hops away that `sig = "corr"` never considers, since `"corr"`
+is restricted to genes directly connected to a seed gene by an edge. Neither
+is "more correct" in general; which one recovers the true target-context
+signature better is an empirical question this package's benchmarking
+tools (`sig_eval_table()`) are built to answer per-dataset.
+
+## `sig = "rwr"` options in depth
+
+### `p`: the restart probability
+
+`p` controls how far the walk tends to travel from the seed genes before
+teleporting back. Low `p` lets the walk wander further across the network
+(more indirect, multi-hop genes get picked up); high `p` keeps it close to
+the seeds (results converge toward the seeds' immediate neighborhood,
+similar to `sig = "corr"`).
+
+```{r restart-prob}
+sig_p_low  <- network_sig(network, seeds = one_seed, sig = "rwr", p = 0.05, limit = 30)
+sig_p_high <- network_sig(network, seeds = one_seed, sig = "rwr", p = 0.9, limit = 30)
+
+jaccard(sig_p_low[[1]], sig_p_high[[1]])
+```
+
+### `avg_p`: ensembling over a range of restart values
+
+Picking a single "right" `p` for a given network is not always obvious.
+Setting `avg_p = TRUE` instead runs the random walk at `avg_p_length`
+restart values evenly spaced across the `avg_p_vals` range and averages the
+resulting stationary probabilities -- trading a single, possibly-arbitrary
+choice of `p` for a smoother estimate less sensitive to that choice.
+
+```{r avg-p}
+sig_avg_p <- network_sig(
+  network,
+  seeds = one_seed,
+  sig = "rwr",
+  avg_p = TRUE,
+  avg_p_vals = c(0.05, 0.5),
+  avg_p_length = 5,
+  limit = 30
+)
+length(sig_avg_p[[1]])
+```
+
+### `bootstrap`/`n_bootstraps`: significance-based selection instead of top-`limit`
+
+By default (`bootstrap = FALSE`), `network_sig()` just keeps the top
+`limit` genes by stationary probability -- an arbitrary cutoff. Setting
+`bootstrap = TRUE` instead runs the *same* random walk from `n_bootstraps`
+randomly-chosen gene sets (matched in size to the real seed set) to build an
+empirical null distribution, then keeps only genes whose real stationary
+probability exceeds the 99th percentile of that null -- a
+significance-based cutoff rather than a fixed count. This means the
+resulting signature can be smaller (or larger) than `limit`, and costs
+roughly `n_bootstraps` extra random walks per seed set, so it's noticeably
+slower.
+
+```{r bootstrap}
+sig_bootstrap <- network_sig(
+  network,
+  seeds = one_seed,
+  sig = "rwr",
+  bootstrap = TRUE,
+  n_bootstraps = 30, # kept small here for vignette speed; real analyses may want more
+  limit = 30 # unused when bootstrap = TRUE and p != 1, but harmless to leave set
+)
+length(sig_bootstrap[[1]])
+```
+
+## Under the hood: `random_walk()` and seed matrices
+
+`network_sig(sig = "rwr")` is itself built on the lower-level, exported
+`random_walk()` function, which takes a **seed matrix** -- a
+(genes x seed-sets) matrix marking which genes are seeds for which
+signature -- rather than a named list of gene vectors. Building one by hand
+shows exactly what `network_sig()` constructs internally:
+
+```{r seed-matrix}
+gene_names <- igraph::V(network)$name
+seed_genes <- intersect(one_seed[[1]], gene_names)
+
+seed_mat <- matrix(
+  0, nrow = length(gene_names), ncol = 1,
+  dimnames = list(gene_names, names(one_seed))
+)
+seed_mat[seed_genes, 1] <- 1
+
+raw_probs <- random_walk(network, seed_mat, restart = 0.1)
+dim(raw_probs)
+
+# The top genes by stationary probability match extract_sig_mat()'s logic
+# inside network_sig() -- this is the un-thresholded, raw output.
+head(sort(raw_probs[, 1], decreasing = TRUE), 5)
+```
+
+`random_walk()` returns raw stationary probabilities for every gene, with no
+top-`limit` cutoff or bootstrap-based thresholding applied -- that gene
+selection step is what `network_sig()` adds on top.
+
+## Next steps
+
+- The [Getting Started](getting-started.html) vignette for the full
+  recontextualization + benchmarking workflow
+- `?network_sig`, `?random_walk`, `?wgcna.adj` for full parameter references
+- `?demo_datasets` for the other three bundled demo triples
