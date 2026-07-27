@@ -1,0 +1,699 @@
+.build_networkprop_graph <- function(
+  se,
+  assay_name = NULL,
+  nfeatures = NULL,
+  min.sft = 0.85,
+  beta = NULL,
+  cores = 1,
+  cor.fn = c("bicor", "cor"),
+  cor.type = c("unsigned", "signed hybrid", "signed"),
+  powers = c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
+  diag_zero = TRUE
+) {
+  stopifnot(is(se, "SummarizedExperiment"))
+
+  if (is.null(assay_name)) {
+    assay_names <- names(SummarizedExperiment::assays(se))
+    assay_name <- assay_names[[1]]
+  }
+
+  if (
+    is.null(assay_name) ||
+      !assay_name %in% names(SummarizedExperiment::assays(se))
+  ) {
+    stop("'assay_name' must identify an assay present in 'se'.")
+  }
+
+  counts <- SummarizedExperiment::assays(se)[[assay_name]]
+  if (is(counts, "sparseMatrix")) {
+    counts <- as.matrix(counts)
+  }
+
+  if (is.null(rownames(counts))) {
+    stop("The selected assay must have rownames for network construction.")
+  }
+
+  lib_sizes <- colSums(counts)
+  if (any(lib_sizes <= 0)) {
+    stop(
+      "All samples must have positive library sizes for method = 'networkProp'."
+    )
+  }
+
+  norm_counts <- sweep(counts, 2, lib_sizes, "/")
+  norm_counts <- log1p(norm_counts)
+
+  network_se <- SummarizedExperiment::SummarizedExperiment(
+    assays = list(log_norm = norm_counts),
+    colData = SummarizedExperiment::colData(se)
+  )
+
+  if (is.null(nfeatures)) {
+    nfeatures <- min(10000L, nrow(network_se))
+  } else {
+    nfeatures <- min(as.integer(nfeatures), nrow(network_se))
+  }
+
+  ranked_genes <- rank.var.eset(network_se)$values
+  keep_genes <- ranked_genes[seq_len(nfeatures)]
+  network_mat <- t(norm_counts[keep_genes, , drop = FALSE])
+
+  wgcna.adj(
+    mat = network_mat,
+    min.sft = min.sft,
+    beta = beta,
+    cores = cores,
+    cor.fn = match.arg(cor.fn),
+    cor.type = match.arg(cor.type),
+    powers = powers,
+    igraph = TRUE,
+    diag_zero = diag_zero
+  )
+}
+
+
+#' Create (gene x seed) prior matrix based on seed signatures.
+#'
+#' @description
+#' This function creates a binary matrix representing seed genes in the context of a graph.
+#'
+#' @param ig An igraph object representing the network that has the seed genes as vertices
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
+#' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
+#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
+#' @return A binary matrix where rows represent genes in the graph and columns represent seed sets.
+#'
+#' @importFrom igraph V
+#' @importFrom Matrix sparseMatrix
+#' @keywords internal
+seed_matrix <- function(ig, seeds, bootstrap = FALSE, n_bootstraps = 1000) {
+  # Seeds can be a single character vector. In that case need to list-ify it.
+  if (is.character(seeds) && length(seeds) == 1) {
+    seeds <- setNames(list(seeds), seeds)
+  }
+  if (is.null(names(seeds))) {
+    stop("Seed signature needs name")
+  }
+
+  gene_names <- igraph::V(ig)$name
+  gene_idx <- setNames(seq_along(gene_names), gene_names)
+  n_pbs <- length(seeds)
+
+  # Create Seed Matrix
+  if (bootstrap) {
+    bins_filter <- bin_presence(lapply(seeds, function(x) length(x)) %>% unlist)
+    present_bins <- which(bins_filter)
+    n_bins <- length(present_bins)
+    n_cols <- n_bins * n_bootstraps
+    row_indices <- vector("list", n_cols)
+    colnames_mat <- names(present_bins) %>% rep(each = n_bootstraps)
+
+    # If bootstrap matrix is (n_genes, n_bootstraps x n_bins)
+    for (present_bin in seq_along(present_bins)) {
+      bin <- present_bins[present_bin]
+      for (i in seq_len(n_bootstraps)) {
+        # Sample a random set of genes with size sampled between bin end-points
+        last_digit <- i %% 10
+        last_digit <- ifelse(last_digit == 0, 10, last_digit)
+
+        sample_size <- (bin - 1) * 10 + last_digit
+        genes <- sample.int(length(gene_names), sample_size)
+
+        bin_col <- (present_bin - 1) * n_bootstraps + i
+        row_indices[[bin_col]] <- genes
+      }
+    }
+
+    mat <- Matrix::sparseMatrix(
+      i = unlist(row_indices, use.names = FALSE),
+      j = rep(seq_len(n_cols), lengths(row_indices)),
+      x = 1,
+      dims = c(length(gene_names), n_cols),
+      dimnames = list(gene_names, colnames_mat)
+    )
+  } else {
+    row_indices <- unlist(
+      lapply(seeds, function(genes) unname(gene_idx[genes])),
+      use.names = FALSE
+    )
+    col_indices <- rep(seq_len(n_pbs), lengths(seeds))
+
+    mat <- Matrix::sparseMatrix(
+      i = row_indices,
+      j = col_indices,
+      x = 1,
+      dims = c(length(gene_names), n_pbs),
+      dimnames = list(gene_names, names(seeds))
+    )
+  }
+
+  return(mat)
+}
+
+#' Perform a random walk on an igraph given seeds, return stationary probabilities
+#'
+#' @param ig igraph object
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes
+#' @param restart A numeric specifying the probability of restarting at the seed nodes
+#' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
+#' @param avg_p_vals A numeric vector specifying the start and end of a arithmetic sequence to explore restart values
+#' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
+#' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
+#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
+#' @param epsilon Exploration factor
+#' @param normalize Normalization strategy
+#' @return (n_gene, n_seeds) matrix of stationary probability values
+#' @noRd
+rwr_mat <- function(
+  ig,
+  seeds,
+  restart = 0.75,
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  epsilon = NULL,
+  normalize = c("row", "column", "laplacian", "none")
+) {
+  # Assumes all seeds are present in ig graph
+  # browser()
+  stopifnot(is(ig, "igraph"))
+  stopifnot("name" %in% igraph::vertex_attr_names(ig))
+
+  normalize <- match.arg(normalize)
+
+  seed_mat <- seed_matrix(
+    ig,
+    seeds,
+    bootstrap = bootstrap,
+    n_bootstraps = n_bootstraps
+  )
+  transition_mat <- prepare_rwr_transition(ig = ig, normalize = normalize)
+  mat <- rwr_from_seed_matrix(
+    transition_mat = transition_mat,
+    seed_mat = seed_mat,
+    restart = restart,
+    avg_p = avg_p,
+    avg_p_vals = avg_p_vals,
+    avg_p_length = avg_p_length,
+    epsilon = epsilon
+  )
+
+  return(mat)
+}
+
+
+#' Extracts a signature from a (gene x seed) matrix of stationary probability values.
+#' This is the recontextualized signature.
+#' If doing ks.test, you don't need to find the top_n. Just find ks.test(original, recontextualized ranking) before and after.
+#' @param mat (n_gene, n_seed) matrix of stationary probability values from rwr_mat
+#' @param bootstraps A (n_gene, n_bins*n_bootstraps) matrix specifying results from bootstrapped random walks.
+#' @param sig_bins A named list describing the length of each perturbation.
+#' @param percentile A double between 0,1 indicating the proportion cutoff for bootstrap-based signature derivation.
+#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
+#' @return A named list of genesets. Each list element is the recontextualized signature for that seed.
+#' @keywords internal
+extract_sig_mat <- function(
+  mat,
+  bootstraps = NULL,
+  sig_bins = NULL,
+  percentile = 0.99,
+  limit = 30
+) {
+  sigs <- list()
+
+  if (length(limit) == 1) {
+    limits <- rep(limit, ncol(mat))
+  } else {
+    limits <- limit
+  }
+
+  if (!is.null(bootstraps)) {
+    # Extract top n signatures based on gene-level comparison with bootstraps
+    intervals <- unique(colnames(bootstraps))
+    bounds <- t(vapply(
+      strsplit(intervals, "-", fixed = TRUE),
+      as.numeric,
+      numeric(2)
+    ))
+    bootstrap_idx_by_interval <- split(
+      seq_len(ncol(bootstraps)),
+      colnames(bootstraps)
+    )
+    percentiles <- matrix(
+      0,
+      nrow = nrow(mat),
+      ncol = ncol(mat),
+      dimnames = dimnames(mat)
+    )
+
+    for (j in seq_len(ncol(mat))) {
+      pb_name <- colnames(mat)[j]
+      sig_bin <- sig_bins[[pb_name]]
+      interval <- intervals[which(
+        sig_bin >= bounds[, 1] & sig_bin <= bounds[, 2]
+      )]
+      bootstrap_idx <- bootstrap_idx_by_interval[[interval]]
+      obs_col <- as.numeric(mat[, j])
+      bootstrap_subset <- bootstraps[, bootstrap_idx, drop = FALSE]
+
+      if (inherits(bootstrap_subset, "Matrix")) {
+        counts <- numeric(length(obs_col))
+        for (k in seq_len(ncol(bootstrap_subset))) {
+          counts <- counts + (as.numeric(bootstrap_subset[, k]) <= obs_col)
+        }
+        percentiles[, j] <- counts / ncol(bootstrap_subset)
+      } else {
+        percentiles[, j] <- rowMeans(bootstrap_subset <= obs_col)
+      }
+    }
+    percentiles[percentiles < percentile] <- 0
+
+    for (col in 1:ncol(mat)) {
+      colname <- colnames(percentiles)[[col]]
+      mat_col <- percentiles[, col]
+      mat_col <- mat_col[mat_col != 0]
+      sig <- sort(mat_col, decreasing = TRUE) %>% names()
+      sigs[[colname]] <- sig
+    }
+  } else {
+    # Manually extract the 'top n' signatures set by limit parameter.
+    for (col in 1:ncol(mat)) {
+      colname <- colnames(mat)[[col]]
+      mat_col <- as.numeric(mat[, col])
+      names(mat_col) <- rownames(mat)
+      limit <- limits[[col]]
+      sig <- sort(mat_col, decreasing = TRUE) %>%
+        head(limit) %>%
+        names()
+      sigs[[colname]] <- sig
+    }
+  }
+  return(sigs)
+}
+
+
+#' Returns a dataframe object with the stationary probability value and column indicating whether gene was a seed
+#' @param prob_vec (n_gene, 1) matrix
+#' @param seeds character vector
+#' @keywords internal
+annotate_prob_vec <- function(prob_vec, seeds) {
+  stopifnot(is(prob_vec, "dgCMatrix") | is(prob_vec, "Matrix"))
+  stopifnot("Can only annotate (n x 1) vectors" = dim(prob_vec)[[2]] == 1)
+
+  if (is(prob_vec, "dgCMatrix")) {
+    df <- as.data.frame(as.matrix(prob_vec))
+  } else {
+    df <- as.data.frame(prob_vec)
+  }
+
+  colnames(df) <- "prob"
+  df$seed <- rownames(df) %in% seeds
+  df <- df %>% arrange(desc(prob))
+
+  return(df)
+}
+
+#' Perform a random walk on an igraph given seeds, return stationary probabilities
+#'
+#' @param ig igraph object
+#' @param seeds Gene Symbol(s) that are seed nodes for the random walk. If random walk is to be done on multiple genes individually or multiple sets of genes, they should be in seperate elements of the list.
+#' @param restart Numeric, Probability of restarting at the seed nodes
+#' @param normalize Normalization strategy
+#' @return List of Annotated Dataframes. Each Dataframe has columns for gene label, probability value, and seed status.
+#' @noRd
+rwr_df <- function(
+  ig,
+  seeds,
+  restart = 1e-2,
+  normalize = c("row", "column", "laplacian", "none")
+) {
+  normalize <- match.arg(normalize)
+  mat <- rwr_mat(
+    ig = ig,
+    seeds = seeds,
+    restart = restart,
+    normalize = normalize
+  )
+
+  dfs <- sapply(
+    colnames(mat),
+    function(x) annotate_prob_vec(mat[, x, drop = FALSE], seeds = seeds[[x]]),
+    USE.NAMES = TRUE,
+    simplify = FALSE
+  )
+  return(dfs)
+}
+
+
+#' @title Network-propagation based Recontextualization.
+#'
+#' @param ig network given as an igraph
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
+#' @param sig A string specifying the type of network signature: random walk, correlation etc.
+#' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
+#' @param avg_p_vals A numeric vector specifying the start and end of a arithmetic sequence to explore restart values.
+#' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
+#' @param p A numeric specifying the restart value for random walk, default=0.1
+#' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
+#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
+#' @param limit A numeric specifying the number of genes to be included in the network signature. Default is 30.
+#'
+#' @return vector of gene strings
+#'
+#' @importFrom igraph as_adjacency_matrix
+#' @importFrom abind abind
+#' @export
+network_sig <- function(
+  ig,
+  seeds,
+  sig = c("corr", "rwr"),
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  p = 0.1,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  limit = 30
+) {
+  stopifnot(is(seeds, "character") | is(seeds, "list"))
+  stopifnot(is(ig, "igraph"))
+  sig <- match.arg(sig)
+
+  if (is.character(seeds) && length(seeds) == 1) {
+    seeds <- setNames(list(seeds), seeds)
+  }
+
+  gene_names <- igraph::V(ig)$name
+  all_genes <- unname(unlist(seeds))
+  seed_genes_filter <- all(all_genes %in% gene_names)
+  if (!seed_genes_filter) {
+    message("Filtering Seed Genes to those contained in the graph.")
+    seeds <- lapply(seeds, function(x) x[x %in% gene_names])
+  }
+
+  if (is.list(seeds)) {
+    empty_sigs <- names(seeds)[lengths(seeds) == 0]
+    if (length(empty_sigs) > 0) {
+      for (sig_name in empty_sigs) {
+        message(sprintf(
+          "Skipping signature '%s' because its genes were not found in the igraph network.",
+          sig_name
+        ))
+      }
+      seeds <- seeds[lengths(seeds) > 0]
+    }
+  }
+
+  if (length(seeds) == 0) {
+    message(
+      "No signatures remained after filtering to genes present in the igraph network."
+    )
+    return(list())
+  }
+
+  if (sig == "corr") {
+    if ("weight" %in% list.edge.attributes(ig)) {
+      cor_mat <- igraph::as_adjacency_matrix(ig, attr = "weight")
+    } else {
+      cor_mat <- igraph::as_adjacency_matrix(ig, attr = NULL)
+    }
+    net_sig <- correlated_sigs(corr_mat = cor_mat, seeds = seeds, limit = limit)
+  } else if (sig == "rwr") {
+    transition_mat <- prepare_rwr_transition(ig = ig, normalize = "row")
+    obs_seed_mat <- seed_matrix(ig, seeds)
+    obs_mat <- rwr_from_seed_matrix(
+      transition_mat = transition_mat,
+      seed_mat = obs_seed_mat,
+      restart = p,
+      avg_p = avg_p,
+      avg_p_vals = avg_p_vals,
+      avg_p_length = avg_p_length
+    )
+    if (bootstrap & (p != 1)) {
+      # If bootstrap matrix is (n_genes, n_bootstraps x n_bins)
+      bootstrap_seed_mat <- seed_matrix(
+        ig,
+        seeds,
+        bootstrap = bootstrap,
+        n_bootstraps = n_bootstraps
+      )
+      mat_bootstraps <- rwr_from_seed_matrix(
+        transition_mat = transition_mat,
+        seed_mat = bootstrap_seed_mat,
+        restart = p,
+        avg_p = avg_p,
+        avg_p_vals = avg_p_vals,
+        avg_p_length = avg_p_length
+      )
+
+      sig_bins <- lapply(seeds, length)
+      net_sig <- extract_sig_mat(
+        obs_mat,
+        bootstraps = mat_bootstraps,
+        sig_bins = sig_bins
+      )
+    } else {
+      net_sig <- extract_sig_mat(obs_mat, bootstraps = NULL, limit = limit)
+    }
+  }
+  return(net_sig)
+}
+
+
+#' Recontextualize seed signatures with correlation based neighbors
+#'
+#' @param corr_mat Correlation Matrix
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or a list of named lists of genes.
+#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
+#' @keywords internal
+correlated_sigs <- function(corr_mat, seeds, limit = 30) {
+  # Seeds can be a single character vector. In that case need to list-ify it.
+  if (is(seeds, "character") && length(seeds) == 1) {
+    seeds <- list(seeds)
+    names(seeds) <- seeds
+  } else if (is.null(names(seeds))) {
+    stop("Seed signature needs name")
+  }
+
+  all_genes <- unname(unlist(seeds))
+  seed_filter <- all_genes %in% rownames(corr_mat)
+
+  stopifnot(
+    "Seed Genes are not all contained in the Correlation matrix." = all(
+      seed_filter
+    )
+  )
+
+  top_corrs <- list()
+  for (gs_name in names(seeds)) {
+    geneset <- seeds[[gs_name]]
+
+    if (length(geneset) > 1) {
+      mean_corrs <- apply(corr_mat[, geneset], 1, mean)
+      top_corr <- sort(mean_corrs, decreasing = TRUE)[1:limit]
+      top_corr <- names(top_corr)
+      top_corrs[[gs_name]] <- top_corr
+    } else {
+      top_corr <- sort(corr_mat[, geneset], decreasing = TRUE)[1:limit]
+      top_corrs[[gs_name]] <- names(top_corr)
+    }
+  }
+
+  return(top_corrs)
+}
+
+#' Recontextualize seed signatures with correlation based neighbors
+#'
+#' @param corr_mats List of correlation matrices
+#' @param seeds List of seeds, length has to match corr_mats
+#' @param limit Number of genes to keep in the output, or a vector of lengths. Default is 30.
+#' @keywords internal
+v.correlated_sigs <- function(corr_mats, seeds, limit = 30) {
+  # browser()
+  sigs <- list()
+  for (i in seq_along(corr_mats)) {
+    corr_mat <- corr_mats[[i]]
+    name <- names(corr_mats)[[i]]
+    seed <- seeds[i]
+
+    top_corrs <- correlated_sigs(corr_mat, seed, limit)
+
+    if (is.null(name)) {
+      sigs[[i]] <- top_corrs
+    } else {
+      sigs[[name]] <- top_corrs
+    }
+  }
+  return(sigs)
+}
+
+#' Perform a random walk with restart (personalized page rank) on an igraph given a seed matrix, and return stationary probabilties.
+#' Stripped down and corrected version of dnet: https://rdrr.io/cran/dnet/src/R/dRWR.r
+#'
+#' @param ig igraph object
+#' @param seed_mat (Gene, num_seeds) matrix with prior weights for each gene in a seed set. See seed_matrix.
+#' @param restart the restart probability for RWR
+#' @param epsilon Exploration factor
+#' @param normalize Normalization strategy
+#' @return It returns a sparse matrix with stationary probabilities.
+#'
+#' @importFrom igraph list.edge.attributes as_adjacency_matrix
+#' @importFrom Matrix Diagonal colSums rowSums t
+#'
+#' @keywords internal
+random_walk <- function(
+  ig,
+  seed_mat,
+  restart = 0.1,
+  epsilon = NULL,
+  normalize = c("row", "column", "laplacian", "none")
+) {
+  # Type checks
+  stopifnot(is(ig) == "igraph")
+  stopifnot(is(seed_mat, "matrix") || is(seed_mat, "Matrix"))
+  normalize <- match.arg(normalize)
+
+  transition_mat <- prepare_rwr_transition(ig = ig, normalize = normalize)
+  return(rwr_from_seed_matrix(
+    transition_mat = transition_mat,
+    seed_mat = seed_mat,
+    restart = restart,
+    epsilon = epsilon
+  ))
+}
+
+prepare_rwr_transition <- function(
+  ig,
+  normalize = c("row", "column", "laplacian", "none")
+) {
+  normalize <- match.arg(normalize)
+
+  # Get Adjacency matrix
+  if ("weight" %in% igraph::edge_attr_names(ig)) {
+    adj_mat <- igraph::as_adjacency_matrix(ig, attr = "weight")
+    adj_mat[is.na(adj_mat)] <- 0
+    message("Using weighted graph")
+  } else {
+    adj_mat <- igraph::as_adjacency_matrix(ig, attr = NULL)
+    adj_mat[is.na(adj_mat)] <- 0
+    message("Using unweighted graph")
+  }
+
+  # Normalize adjacency matrix. DNet::dRWR had the multiplication orders flipped for row and column.
+  if (normalize == "row") {
+    D <- Matrix::Diagonal(x = (Matrix::rowSums(adj_mat))^(-1))
+    nadjM <- D %*% adj_mat
+  } else if (normalize == "column") {
+    D <- Matrix::Diagonal(x = (Matrix::colSums(adj_mat))^(-1))
+    nadjM <- adj_mat %*% D
+  } else if (normalize == "laplacian") {
+    D <- Matrix::Diagonal(x = (Matrix::colSums(adj_mat))^(-0.5))
+    nadjM <- D %*% adj_mat %*% D
+  } else if (normalize == "none") {
+    nadjM <- adj_mat
+  }
+
+  nadjM
+}
+
+normalize_seed_matrix <- function(seed_mat) {
+  norm_seed_mat <- seed_mat %*%
+    Matrix::Diagonal(x = (Matrix::colSums(seed_mat))^(-1))
+  colnames(norm_seed_mat) <- colnames(seed_mat)
+  as(norm_seed_mat, "CsparseMatrix")
+}
+
+rwr_from_seed_matrix <- function(
+  transition_mat,
+  seed_mat,
+  restart = 0.1,
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  epsilon = NULL
+) {
+  norm_seed_mat <- normalize_seed_matrix(seed_mat)
+
+  if (avg_p) {
+    avg_p_seq <- seq(avg_p_vals[1], avg_p_vals[2], length.out = avg_p_length)
+    mat <- Matrix::Matrix(
+      0,
+      nrow = nrow(norm_seed_mat),
+      ncol = ncol(norm_seed_mat),
+      dimnames = dimnames(norm_seed_mat),
+      sparse = TRUE
+    )
+
+    for (restart_val in avg_p_seq) {
+      mat <- mat +
+        random_walk_from_transition(
+          transition_mat = transition_mat,
+          norm_seed_mat = norm_seed_mat,
+          restart = restart_val,
+          epsilon = epsilon
+        )
+    }
+    return(mat / avg_p_length)
+  }
+
+  random_walk_from_transition(
+    transition_mat = transition_mat,
+    norm_seed_mat = norm_seed_mat,
+    restart = restart,
+    epsilon = epsilon
+  )
+}
+
+random_walk_from_transition <- function(
+  transition_mat,
+  norm_seed_mat,
+  restart = 0.1,
+  epsilon = NULL
+) {
+  stopifnot(is(norm_seed_mat, "Matrix"))
+
+  ## Stopping Criteria
+  stop_delta <- 1e-5 # L1 norm of successive iterations of Transition Matrix multiplication
+  stop_step <- 100 # maximum steps of iterations
+
+  ## Initial Variables
+  P0 <- norm_seed_mat
+  PT <- P0
+  r <- restart
+  step <- 0
+  delta <- 1
+
+  ## Exploration Parameters
+  if (!is.null(epsilon)) {
+    stopifnot(is(epsilon, "numeric"))
+
+    n_genes_seed_mean <- as.integer(mean(Matrix::colSums(norm_seed_mat > 0)))
+    n_explore <- as.integer(n_genes_seed_mean * epsilon)
+    r <- 1
+    paste0("Stopping Criterion: ", n_explore, " displaced genes.")
+  }
+
+  ## Dnet had the matrix multiplication orders flipped.
+  ## This order keeps the distribution in columns after each multiplication.
+  while (delta > stop_delta && step <= stop_step) {
+    PX <- (1 - r) * Matrix::t(Matrix::t(PT) %*% transition_mat) + r * P0
+    delta <- sum(abs(PX - PT))
+    PT <- PX
+    step <- step + 1
+
+    ## Write function that counts number of displaced.
+    ## Add stopping condition
+    # if (!is.null(epsilon)) {
+    # }
+
+    if (step > stop_step) {
+      message(paste0("Reached maximum iteration steps. Delta: ", delta))
+    } else if (delta <= stop_delta) {
+      message(paste0("Reached Convergence. Iteration step: ", step))
+    }
+  }
+
+  return(PX)
+}
