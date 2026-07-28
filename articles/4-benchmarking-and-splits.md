@@ -6,7 +6,7 @@ library(sigrecon)
 ```
 
 The [Getting
-Started](https://montilab.github.io/sigrecon/articles/getting-started.md)
+Started](https://montilab.github.io/sigrecon/articles/1-getting-started.md)
 vignette runs
 [`sig_eval_table()`](https://montilab.github.io/sigrecon/reference/sig_eval_table.md)
 once and glances at a few of its output columns. This vignette covers

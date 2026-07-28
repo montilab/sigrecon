@@ -11,6 +11,7 @@ recontextualize(
   se = NULL,
   seeds = NULL,
   sigs = NULL,
+  ig = NULL,
   score = c("gsva", "eigen"),
   sig = c("rwr", "corr"),
   avg_p = FALSE,
@@ -62,6 +63,15 @@ recontextualize(
   interpreted as perturbation labels and lengths are used as output
   sizes when `limit` is not supplied.
 
+- ig:
+
+  An optional pre-built igraph for method = `"networkProp"`, e.g. from a
+  previous
+  [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+  call. If supplied, network construction is skipped and `se` is not
+  required. See
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md).
+
 - score:
 
   Scoring method used by `"projectCor"`.
@@ -69,7 +79,7 @@ recontextualize(
 - sig:
 
   Network signature mode passed to
-  [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md).
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md).
   Defaults to `"rwr"`.
 
 - avg_p:
@@ -88,17 +98,17 @@ recontextualize(
 - p:
 
   Restart probability passed to
-  [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md).
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md).
 
 - bootstrap:
 
   Whether to use bootstrap-based extraction in
-  [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md).
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md).
 
 - n_bootstraps:
 
   Number of bootstrap replicates passed to
-  [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md).
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md).
 
 - limit:
 
@@ -114,37 +124,37 @@ recontextualize(
 - min.sft:
 
   Minimum scale-free topology fitting index used by
-  [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
   when learning the `"networkProp"` graph.
 
 - beta:
 
   Optional soft-thresholding power passed to
-  [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
   for `"networkProp"`.
 
 - cores:
 
   Number of CPU cores passed to
-  [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
   for `"networkProp"`.
 
 - cor.fn:
 
   Correlation function passed to
-  [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
   for `"networkProp"`.
 
 - cor.type:
 
   Correlation network type passed to
-  [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
   for `"networkProp"`.
 
 - powers:
 
   Candidate power values passed to
-  [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+  [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
   for `"networkProp"` when `beta` is `NULL`.
 
 - diag_zero:

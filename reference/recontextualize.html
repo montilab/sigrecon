@@ -50,6 +50,7 @@
 <span>  se <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  seeds <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sigs <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ig <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  score <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gsva"</span>, <span class="st">"eigen"</span><span class="op">)</span>,</span>
 <span>  sig <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rwr"</span>, <span class="st">"corr"</span><span class="op">)</span>,</span>
 <span>  avg_p <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -103,12 +104,18 @@ are interpreted as perturbation labels and lengths are used as output sizes
 when <code>limit</code> is not supplied.</p></dd>
 
 
+<dt id="arg-ig">ig<a class="anchor" aria-label="anchor" href="#arg-ig"></a></dt>
+<dd><p>An optional pre-built igraph for method = <code>"networkProp"</code>, e.g.
+from a previous <code><a href="wgcna.adj.html">wgcna.adj()</a></code> call. If supplied, network construction is
+skipped and <code>se</code> is not required. See <code><a href="netProp.html">netProp()</a></code>.</p></dd>
+
+
 <dt id="arg-score">score<a class="anchor" aria-label="anchor" href="#arg-score"></a></dt>
 <dd><p>Scoring method used by <code>"projectCor"</code>.</p></dd>
 
 
 <dt id="arg-sig">sig<a class="anchor" aria-label="anchor" href="#arg-sig"></a></dt>
-<dd><p>Network signature mode passed to <code><a href="network_sig.html">network_sig()</a></code>. Defaults to <code>"rwr"</code>.</p></dd>
+<dd><p>Network signature mode passed to <code><a href="netProp.html">netProp()</a></code>. Defaults to <code>"rwr"</code>.</p></dd>
 
 
 <dt id="arg-avg-p">avg_p<a class="anchor" aria-label="anchor" href="#arg-avg-p"></a></dt>
@@ -124,15 +131,15 @@ when <code>limit</code> is not supplied.</p></dd>
 
 
 <dt id="arg-p">p<a class="anchor" aria-label="anchor" href="#arg-p"></a></dt>
-<dd><p>Restart probability passed to <code><a href="network_sig.html">network_sig()</a></code>.</p></dd>
+<dd><p>Restart probability passed to <code><a href="netProp.html">netProp()</a></code>.</p></dd>
 
 
 <dt id="arg-bootstrap">bootstrap<a class="anchor" aria-label="anchor" href="#arg-bootstrap"></a></dt>
-<dd><p>Whether to use bootstrap-based extraction in <code><a href="network_sig.html">network_sig()</a></code>.</p></dd>
+<dd><p>Whether to use bootstrap-based extraction in <code><a href="netProp.html">netProp()</a></code>.</p></dd>
 
 
 <dt id="arg-n-bootstraps">n_bootstraps<a class="anchor" aria-label="anchor" href="#arg-n-bootstraps"></a></dt>
-<dd><p>Number of bootstrap replicates passed to <code><a href="network_sig.html">network_sig()</a></code>.</p></dd>
+<dd><p>Number of bootstrap replicates passed to <code><a href="netProp.html">netProp()</a></code>.</p></dd>
 
 
 <dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>
@@ -148,28 +155,28 @@ when <code>limit</code> is not supplied.</p></dd>
 
 <dt id="arg-min-sft">min.sft<a class="anchor" aria-label="anchor" href="#arg-min-sft"></a></dt>
 <dd><p>Minimum scale-free topology fitting index used by
-<code><a href="wgcna.adj.html">wgcna.adj()</a></code> when learning the <code>"networkProp"</code> graph.</p></dd>
+<code><a href="netProp.html">netProp()</a></code> when learning the <code>"networkProp"</code> graph.</p></dd>
 
 
 <dt id="arg-beta">beta<a class="anchor" aria-label="anchor" href="#arg-beta"></a></dt>
-<dd><p>Optional soft-thresholding power passed to <code><a href="wgcna.adj.html">wgcna.adj()</a></code> for
+<dd><p>Optional soft-thresholding power passed to <code><a href="netProp.html">netProp()</a></code> for
 <code>"networkProp"</code>.</p></dd>
 
 
 <dt id="arg-cores">cores<a class="anchor" aria-label="anchor" href="#arg-cores"></a></dt>
-<dd><p>Number of CPU cores passed to <code><a href="wgcna.adj.html">wgcna.adj()</a></code> for <code>"networkProp"</code>.</p></dd>
+<dd><p>Number of CPU cores passed to <code><a href="netProp.html">netProp()</a></code> for <code>"networkProp"</code>.</p></dd>
 
 
 <dt id="arg-cor-fn">cor.fn<a class="anchor" aria-label="anchor" href="#arg-cor-fn"></a></dt>
-<dd><p>Correlation function passed to <code><a href="wgcna.adj.html">wgcna.adj()</a></code> for <code>"networkProp"</code>.</p></dd>
+<dd><p>Correlation function passed to <code><a href="netProp.html">netProp()</a></code> for <code>"networkProp"</code>.</p></dd>
 
 
 <dt id="arg-cor-type">cor.type<a class="anchor" aria-label="anchor" href="#arg-cor-type"></a></dt>
-<dd><p>Correlation network type passed to <code><a href="wgcna.adj.html">wgcna.adj()</a></code> for <code>"networkProp"</code>.</p></dd>
+<dd><p>Correlation network type passed to <code><a href="netProp.html">netProp()</a></code> for <code>"networkProp"</code>.</p></dd>
 
 
 <dt id="arg-powers">powers<a class="anchor" aria-label="anchor" href="#arg-powers"></a></dt>
-<dd><p>Candidate power values passed to <code><a href="wgcna.adj.html">wgcna.adj()</a></code> for <code>"networkProp"</code>
+<dd><p>Candidate power values passed to <code><a href="netProp.html">netProp()</a></code> for <code>"networkProp"</code>
 when <code>beta</code> is <code>NULL</code>.</p></dd>
 
 

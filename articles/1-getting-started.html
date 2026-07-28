@@ -78,13 +78,14 @@ that <em>same</em> perturbation in a <em>different</em> context? Any
 method that takes a ranked list of genes from a source context and
 outputs a ranked list of genes for a target context is performing
 <strong>signature recontextualization</strong>.</p>
-<p><code>sigrecon</code> provides two baseline recontextualization
-methods – projection-based scoring (<code><a href="../reference/projectCor.html">projectCor()</a></code>) and
-network propagation (<code><a href="../reference/wgcna.adj.html">wgcna.adj()</a></code> +
-<code><a href="../reference/network_sig.html">network_sig()</a></code>) – plus benchmarking tools
-(<code><a href="../reference/sig_eval_table.html">sig_eval_table()</a></code>) to evaluate how well a recontextualized
-signature recovers the true signature in the target context.</p>
-<p>This vignette walks through both methods end to end on a small,
+<p><code>sigrecon</code> provides three baseline recontextualization
+methods – projection-based scoring (<code><a href="../reference/projectCor.html">projectCor()</a></code>), network
+propagation (<code><a href="../reference/netProp.html">netProp()</a></code>), and a DESeq2-based mean method
+(<code>recontextualize(method = "mean")</code>) – plus benchmarking
+tools (<code><a href="../reference/sig_eval_table.html">sig_eval_table()</a></code>) to evaluate how well a
+recontextualized signature recovers the true signature in the target
+context.</p>
+<p>This vignette walks through all three methods end to end on a small,
 bundled real-data example, requiring no downloads or external setup.</p>
 </div>
 <div class="section level2">
@@ -154,13 +155,50 @@ recontextualized signature.</p>
 <div class="section level2">
 <h2 id="method-2-network-propagation">Method 2: Network Propagation<a class="anchor" aria-label="anchor" href="#method-2-network-propagation"></a>
 </h2>
-<p>Network propagation works differently: <code><a href="../reference/wgcna.adj.html">wgcna.adj()</a></code> first
+<p>Network propagation works differently: <code><a href="../reference/netProp.html">netProp()</a></code> first
 learns a gene co-expression network from the target-context expression
-data, then <code><a href="../reference/network_sig.html">network_sig()</a></code> propagates the source signature
-across that network (via random walk with restart) to find the genes
-most “reachable” from the seed genes – these become the recontextualized
-signature.</p>
+data, then propagates the source signature across that network (via
+random walk with restart) to find the genes most “reachable” from the
+seed genes – these become the recontextualized signature.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">recon_netprop</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/netProp.html">netProp</a></span><span class="op">(</span><span class="va">demo_sciplex_se</span>, seeds <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, sig <span class="op">=</span> <span class="st">"rwr"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'y'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt;    Power SFT.R.sq  slope truncated.R.sq  mean.k. median.k. max.k.</span></span>
+<span><span class="co">#&gt; 1      1    0.119 -0.993        0.33900 156.0000  1.42e+02 265.00</span></span>
+<span><span class="co">#&gt; 2      2    0.919 -1.640        0.93300  39.3000  3.02e+01 112.00</span></span>
+<span><span class="co">#&gt; 3      3    0.959 -1.580        0.96400  13.3000  7.90e+00  59.50</span></span>
+<span><span class="co">#&gt; 4      4    0.962 -1.520        0.96900   5.5500  2.34e+00  37.90</span></span>
+<span><span class="co">#&gt; 5      5    0.874 -1.590        0.90900   2.7000  7.98e-01  26.50</span></span>
+<span><span class="co">#&gt; 6      6    0.918 -1.500        0.95300   1.4700  2.87e-01  19.90</span></span>
+<span><span class="co">#&gt; 7      7    0.918 -1.460        0.94600   0.8820  1.14e-01  15.70</span></span>
+<span><span class="co">#&gt; 8      8    0.935 -1.390        0.94600   0.5680  4.71e-02  12.80</span></span>
+<span><span class="co">#&gt; 9      9    0.907 -1.350        0.88500   0.3900  2.01e-02  10.90</span></span>
+<span><span class="co">#&gt; 10    10    0.933 -1.320        0.91500   0.2820  9.13e-03   9.43</span></span>
+<span><span class="co">#&gt; 11    12    0.879 -1.260        0.87200   0.1690  2.00e-03   7.51</span></span>
+<span><span class="co">#&gt; 12    14    0.226 -1.520        0.03280   0.1170  4.82e-04   6.78</span></span>
+<span><span class="co">#&gt; 13    16    0.213 -1.810       -0.00155   0.0889  1.20e-04   6.28</span></span>
+<span><span class="co">#&gt; 14    18    0.217 -1.720        0.00168   0.0723  3.10e-05   5.87</span></span>
+<span><span class="co">#&gt; 15    20    0.175 -1.430        0.03040   0.0614  8.29e-06   5.51</span></span>
+<span><span class="co">#&gt; Optimal power selected: 2</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="va">recon_netprop</span><span class="op">[[</span><span class="st">"Panobinostat (LBH589)"</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] "ENSG00000166206" "ENSG00000144036" "ENSG00000130449" "ENSG00000248905"</span></span>
+<span><span class="co">#&gt; [5] "ENSG00000067225"</span></span></code></pre></div>
+<p><code><a href="../reference/netProp.html">netProp()</a></code> is a one-call wrapper around two lower-level
+functions, <code><a href="../reference/wgcna.adj.html">wgcna.adj()</a></code> (builds the network) and
+<code><a href="../reference/network_sig.html">network_sig()</a></code> (propagates across it). Building the network
+is the expensive step, so if you need to propagate many different seed
+sets across the <em>same</em> network, build it once and pass it back in
+via <code>ig</code> instead of calling <code><a href="../reference/netProp.html">netProp()</a></code>
+repeatedly:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">target_expr</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">assay</a></span><span class="op">(</span><span class="va">demo_sciplex_se</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">network</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/wgcna.adj.html">wgcna.adj</a></span><span class="op">(</span><span class="va">target_expr</span>, cor.type <span class="op">=</span> <span class="st">"signed hybrid"</span>, diag_zero <span class="op">=</span> <span class="cn">TRUE</span>, igraph <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
@@ -190,10 +228,169 @@ signature.</p>
 <span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for</span></span>
 <span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
 <span></span>
-<span><span class="va">recon_netprop</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/network_sig.html">network_sig</a></span><span class="op">(</span><span class="va">network</span>, seeds <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, sig <span class="op">=</span> <span class="st">"rwr"</span><span class="op">)</span></span>
-<span><span class="va">recon_netprop</span><span class="op">[[</span><span class="st">"Panobinostat (LBH589)"</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span><span class="op">]</span></span>
-<span><span class="co">#&gt; [1] "ENSG00000151746" "ENSG00000170776" "ENSG00000187079" "ENSG00000196935"</span></span>
-<span><span class="co">#&gt; [5] "ENSG00000154380"</span></span></code></pre></div>
+<span><span class="va">recon_netprop2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/netProp.html">netProp</a></span><span class="op">(</span>ig <span class="op">=</span> <span class="va">network</span>, seeds <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, sig <span class="op">=</span> <span class="st">"rwr"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">recon_netprop</span>, <span class="va">recon_netprop2</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<p>See the <a href="2-network-propagation-details.html">Network
+Propagation in Depth</a> vignette for more on
+<code><a href="../reference/wgcna.adj.html">wgcna.adj()</a></code>/<code><a href="../reference/network_sig.html">network_sig()</a></code>’s individual
+parameters.</p>
+</div>
+<div class="section level2">
+<h2 id="method-3-mean-deseq2">Method 3: Mean (DESeq2)<a class="anchor" aria-label="anchor" href="#method-3-mean-deseq2"></a>
+</h2>
+<p>The mean method takes a different approach entirely: rather than
+recontextualizing a signature you already have, it <em>derives</em> one
+directly from target-context expression data, by running DESeq2 between
+perturbed and control samples and keeping the top upregulated genes. It
+needs raw counts and sample metadata identifying which samples are
+perturbed vs. control (and by what), so it doesn’t fit the SciPlex demo
+signatures used above – here’s a minimal, fabricated example showing the
+shape of the inputs:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
+<span><span class="va">n_genes</span> <span class="op">&lt;-</span> <span class="fl">30</span></span>
+<span></span>
+<span><span class="co"># g1/g2 are upregulated 4x in pertA samples; everything else is unperturbed noise.</span></span>
+<span><span class="va">ctrl_base</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/NegBinomial.html" class="external-link">rnbinom</a></span><span class="op">(</span><span class="va">n_genes</span>, mu <span class="op">=</span> <span class="fl">200</span>, size <span class="op">=</span> <span class="fl">10</span><span class="op">)</span></span>
+<span><span class="va">pert_base</span> <span class="op">&lt;-</span> <span class="va">ctrl_base</span></span>
+<span><span class="va">pert_base</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">pert_base</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span><span class="op">]</span> <span class="op">*</span> <span class="fl">4</span></span>
+<span></span>
+<span><span class="va">sample_counts</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">base</span>, <span class="va">n</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/stats/NegBinomial.html" class="external-link">rnbinom</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">base</span><span class="op">)</span>, mu <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax</a></span><span class="op">(</span><span class="va">base</span>, <span class="fl">1</span><span class="op">)</span>, size <span class="op">=</span> <span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="va">counts</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="fu">sample_counts</span><span class="op">(</span><span class="va">ctrl_base</span>, <span class="fl">4</span><span class="op">)</span>, <span class="fu">sample_counts</span><span class="op">(</span><span class="va">pert_base</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">counts</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"g"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_genes</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">counts</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"ctrl"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">"pertA"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">coldata</span> <span class="op">&lt;-</span> <span class="fu">S4Vectors</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/S4Vectors/man/DataFrame-class.html" class="external-link">DataFrame</a></span><span class="op">(</span></span>
+<span>  perturbation <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"control"</span>, <span class="fl">4</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"pertA"</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  condition    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"Control"</span>, <span class="fl">4</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="st">"Perturbed"</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  row.names    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">colnames</a></span><span class="op">(</span><span class="va">counts</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">se_mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/SummarizedExperiment/man/SummarizedExperiment-class.html" class="external-link">SummarizedExperiment</a></span><span class="op">(</span>assays <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>counts <span class="op">=</span> <span class="va">counts</span><span class="op">)</span>, colData <span class="op">=</span> <span class="va">coldata</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">recon_mean</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/recontextualize.html">recontextualize</a></span><span class="op">(</span></span>
+<span>  method <span class="op">=</span> <span class="st">"mean"</span>,</span>
+<span>  se <span class="op">=</span> <span class="va">se_mean</span>,</span>
+<span>  perturbation_col <span class="op">=</span> <span class="st">"perturbation"</span>,</span>
+<span>  condition_col <span class="op">=</span> <span class="st">"condition"</span>,</span>
+<span>  alpha <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  limit <span class="op">=</span> <span class="fl">2</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">recon_mean</span></span>
+<span><span class="co">#&gt; $pertA</span></span>
+<span><span class="co">#&gt; [1] "g2" "g1"</span></span></code></pre></div>
+<p><code>g1</code>/<code>g2</code> are the two genes consistently higher
+in <code>pertA</code> samples than in controls, so they come out as the
+derived signature for <code>pertA</code>.</p>
+</div>
+<div class="section level2">
+<h2 id="one-entry-point-recontextualize">One entry point: <code>recontextualize()</code><a class="anchor" aria-label="anchor" href="#one-entry-point-recontextualize"></a>
+</h2>
+<p>Each method above (<code><a href="../reference/projectCor.html">projectCor()</a></code>, <code><a href="../reference/netProp.html">netProp()</a></code>,
+the mean method) can also be run through a single dispatcher,
+<code><a href="../reference/recontextualize.html">recontextualize()</a></code>, by setting
+<code>method = "projectCor"</code>, <code>"networkProp"</code>, or
+<code>"mean"</code>. This is convenient when method choice is itself a
+parameter of a larger workflow (e.g. looping over multiple methods in a
+benchmarking script) rather than something fixed at call-site.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/recontextualize.html">recontextualize</a></span><span class="op">(</span>method <span class="op">=</span> <span class="st">"projectCor"</span>, se <span class="op">=</span> <span class="va">demo_sciplex_se</span>, sigs <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, score <span class="op">=</span> <span class="st">"gsva"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="../reference/projectCor.html">projectCor</a></span><span class="op">(</span><span class="va">demo_sciplex_se</span>, <span class="va">demo_sciplex_sigs</span>, score <span class="op">=</span> <span class="st">"gsva"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> No assay name provided; using default assay 'logcounts'</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> No assay name provided; using default assay 'logcounts'</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/recontextualize.html">recontextualize</a></span><span class="op">(</span>method <span class="op">=</span> <span class="st">"networkProp"</span>, se <span class="op">=</span> <span class="va">demo_sciplex_se</span>, seeds <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, sig <span class="op">=</span> <span class="st">"rwr"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="../reference/netProp.html">netProp</a></span><span class="op">(</span><span class="va">demo_sciplex_se</span>, seeds <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, sig <span class="op">=</span> <span class="st">"rwr"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'y'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt;    Power SFT.R.sq  slope truncated.R.sq  mean.k. median.k. max.k.</span></span>
+<span><span class="co">#&gt; 1      1    0.119 -0.993        0.33900 156.0000  1.42e+02 265.00</span></span>
+<span><span class="co">#&gt; 2      2    0.919 -1.640        0.93300  39.3000  3.02e+01 112.00</span></span>
+<span><span class="co">#&gt; 3      3    0.959 -1.580        0.96400  13.3000  7.90e+00  59.50</span></span>
+<span><span class="co">#&gt; 4      4    0.962 -1.520        0.96900   5.5500  2.34e+00  37.90</span></span>
+<span><span class="co">#&gt; 5      5    0.874 -1.590        0.90900   2.7000  7.98e-01  26.50</span></span>
+<span><span class="co">#&gt; 6      6    0.918 -1.500        0.95300   1.4700  2.87e-01  19.90</span></span>
+<span><span class="co">#&gt; 7      7    0.918 -1.460        0.94600   0.8820  1.14e-01  15.70</span></span>
+<span><span class="co">#&gt; 8      8    0.935 -1.390        0.94600   0.5680  4.71e-02  12.80</span></span>
+<span><span class="co">#&gt; 9      9    0.907 -1.350        0.88500   0.3900  2.01e-02  10.90</span></span>
+<span><span class="co">#&gt; 10    10    0.933 -1.320        0.91500   0.2820  9.13e-03   9.43</span></span>
+<span><span class="co">#&gt; 11    12    0.879 -1.260        0.87200   0.1690  2.00e-03   7.51</span></span>
+<span><span class="co">#&gt; 12    14    0.226 -1.520        0.03280   0.1170  4.82e-04   6.78</span></span>
+<span><span class="co">#&gt; 13    16    0.213 -1.810       -0.00155   0.0889  1.20e-04   6.28</span></span>
+<span><span class="co">#&gt; 14    18    0.217 -1.720        0.00168   0.0723  3.10e-05   5.87</span></span>
+<span><span class="co">#&gt; 15    20    0.175 -1.430        0.03040   0.0614  8.29e-06   5.51</span></span>
+<span><span class="co">#&gt; Optimal power selected: 2</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt; Using weighted graph</span></span>
+<span><span class="co">#&gt; Reached Convergence. Iteration step: 16</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'y'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt;    Power SFT.R.sq  slope truncated.R.sq  mean.k. median.k. max.k.</span></span>
+<span><span class="co">#&gt; 1      1    0.119 -0.993        0.33900 156.0000  1.42e+02 265.00</span></span>
+<span><span class="co">#&gt; 2      2    0.919 -1.640        0.93300  39.3000  3.02e+01 112.00</span></span>
+<span><span class="co">#&gt; 3      3    0.959 -1.580        0.96400  13.3000  7.90e+00  59.50</span></span>
+<span><span class="co">#&gt; 4      4    0.962 -1.520        0.96900   5.5500  2.34e+00  37.90</span></span>
+<span><span class="co">#&gt; 5      5    0.874 -1.590        0.90900   2.7000  7.98e-01  26.50</span></span>
+<span><span class="co">#&gt; 6      6    0.918 -1.500        0.95300   1.4700  2.87e-01  19.90</span></span>
+<span><span class="co">#&gt; 7      7    0.918 -1.460        0.94600   0.8820  1.14e-01  15.70</span></span>
+<span><span class="co">#&gt; 8      8    0.935 -1.390        0.94600   0.5680  4.71e-02  12.80</span></span>
+<span><span class="co">#&gt; 9      9    0.907 -1.350        0.88500   0.3900  2.01e-02  10.90</span></span>
+<span><span class="co">#&gt; 10    10    0.933 -1.320        0.91500   0.2820  9.13e-03   9.43</span></span>
+<span><span class="co">#&gt; 11    12    0.879 -1.260        0.87200   0.1690  2.00e-03   7.51</span></span>
+<span><span class="co">#&gt; 12    14    0.226 -1.520        0.03280   0.1170  4.82e-04   6.78</span></span>
+<span><span class="co">#&gt; 13    16    0.213 -1.810       -0.00155   0.0889  1.20e-04   6.28</span></span>
+<span><span class="co">#&gt; 14    18    0.217 -1.720        0.00168   0.0723  3.10e-05   5.87</span></span>
+<span><span class="co">#&gt; 15    20    0.175 -1.430        0.03040   0.0614  8.29e-06   5.51</span></span>
+<span><span class="co">#&gt; Optimal power selected: 2</span></span>
+<span><span class="co">#&gt; Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =</span></span>
+<span><span class="co">#&gt; "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for</span></span>
+<span><span class="co">#&gt; individual columns with zero (or missing) MAD.</span></span>
+<span><span class="co">#&gt; Using weighted graph</span></span>
+<span><span class="co">#&gt; Reached Convergence. Iteration step: 16</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/recontextualize.html">recontextualize</a></span><span class="op">(</span></span>
+<span>    method <span class="op">=</span> <span class="st">"mean"</span>, se <span class="op">=</span> <span class="va">se_mean</span>,</span>
+<span>    perturbation_col <span class="op">=</span> <span class="st">"perturbation"</span>, condition_col <span class="op">=</span> <span class="st">"condition"</span>,</span>
+<span>    alpha <span class="op">=</span> <span class="fl">1</span>, limit <span class="op">=</span> <span class="fl">2</span></span>
+<span>  <span class="op">)</span>,</span>
+<span>  <span class="va">recon_mean</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; converting counts to integer mode</span></span>
+<span><span class="co">#&gt; -- note: fitType='parametric', but the dispersion trend was not well captured by the</span></span>
+<span><span class="co">#&gt;    function: y = a/x + b, and a local regression fit was automatically substituted.</span></span>
+<span><span class="co">#&gt;    specify fitType='local' or 'mean' to avoid this message next time.</span></span>
+<span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>For <code>method = "networkProp"</code>,
+<code><a href="../reference/recontextualize.html">recontextualize()</a></code> also accepts a pre-built <code>ig</code>
+(just like <code><a href="../reference/netProp.html">netProp()</a></code>) to skip network construction and
+reuse a cached network:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="../reference/recontextualize.html">recontextualize</a></span><span class="op">(</span>method <span class="op">=</span> <span class="st">"networkProp"</span>, ig <span class="op">=</span> <span class="va">network</span>, seeds <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, sig <span class="op">=</span> <span class="st">"rwr"</span><span class="op">)</span>,</span>
+<span>  <span class="fu"><a href="../reference/netProp.html">netProp</a></span><span class="op">(</span>ig <span class="op">=</span> <span class="va">network</span>, seeds <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>, sig <span class="op">=</span> <span class="st">"rwr"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="benchmarking-against-the-ground-truth">Benchmarking against the ground truth<a class="anchor" aria-label="anchor" href="#benchmarking-against-the-ground-truth"></a>
@@ -214,7 +411,7 @@ signature’s full ranked gene list</li>
 source signature genes were replaced vs. retained during
 recontextualization</li>
 </ul>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">eval_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sig_eval_table.html">sig_eval_table</a></span><span class="op">(</span></span>
 <span>  source_sigs <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>,</span>
 <span>  pred_sigs   <span class="op">=</span> <span class="va">recon_projectcor</span>,</span>
@@ -239,7 +436,7 @@ using the unmodified source signature directly as the “prediction.”
 Computing the same evaluation with
 <code>pred_sigs = demo_sciplex_sigs</code> gives that no-change
 baseline:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">no_change_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/sig_eval_table.html">sig_eval_table</a></span><span class="op">(</span></span>
 <span>  source_sigs <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>,</span>
 <span>  pred_sigs   <span class="op">=</span> <span class="va">demo_sciplex_sigs</span>,</span>

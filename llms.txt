@@ -15,7 +15,7 @@ signature recontextualization (as reported in
 plus implementations of two of our own methods: projection-based scoring
 ([`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md))
 and network propagation
-([`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)).
+([`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)).
 
 ## Installation
 
@@ -44,9 +44,7 @@ library(sigrecon)
 recon_projectcor <- projectCor(demo_sciplex_se, demo_sciplex_sigs, score = "gsva")
 
 # Or with network propagation
-target_expr <- t(SummarizedExperiment::assay(demo_sciplex_se))
-network <- wgcna.adj(target_expr, cor.type = "signed hybrid", diag_zero = TRUE, igraph = TRUE)
-recon_netprop <- network_sig(network, seeds = demo_sciplex_sigs, sig = "rwr")
+recon_netprop <- netProp(demo_sciplex_se, seeds = demo_sciplex_sigs, sig = "rwr")
 
 # Benchmark against the true target-context signature
 eval_df <- sig_eval_table(
@@ -71,6 +69,9 @@ target context.
   projectCor, or mean.
 - [`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md)
   : Projection based Recontextualization
+- [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
+  : Network-propagation based Recontextualization, from expression data
+  to signature.
 - [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)
   : Network-propagation based Recontextualization.
 - [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)

@@ -10,6 +10,9 @@ target context.
   projectCor, or mean.
 - [`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md)
   : Projection based Recontextualization
+- [`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
+  : Network-propagation based Recontextualization, from expression data
+  to signature.
 - [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)
   : Network-propagation based Recontextualization.
 - [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)

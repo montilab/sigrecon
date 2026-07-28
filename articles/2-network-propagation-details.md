@@ -7,10 +7,15 @@ library(SummarizedExperiment)
 ```
 
 The [Getting
-Started](https://montilab.github.io/sigrecon/articles/getting-started.md)
+Started](https://montilab.github.io/sigrecon/articles/1-getting-started.md)
 vignette uses
+[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md),
+a one-call wrapper around
+[`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+(builds the network) and
 [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)
-with its defaults. This vignette goes deeper: how
+(propagates across it) with their defaults. This vignette goes deeper
+into those two pieces individually: how
 [`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
 builds the network
 [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)
@@ -19,6 +24,17 @@ vs. `sig = "rwr"`, and what each of
 [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)’s
 options (`p`, `avg_p`, `bootstrap`, `n_bootstraps`, `limit`) actually
 controls.
+
+Working with
+[`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)/[`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)
+directly like this is worthwhile whenever you want to reuse the *same*
+built network across many propagation calls – e.g. propagating many
+different seed sets, or sweeping over `p` values, without repeating the
+expensive network-construction step each time.
+[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
+supports this too, via its `ig` argument (see the end of the Getting
+Started vignette) – this vignette just shows what’s underneath that
+shortcut.
 
 We’ll use the bundled SciPlex demo data throughout.
 
@@ -81,9 +97,9 @@ network <- wgcna.adj(
 #> individual columns with zero (or missing) MAD.
 
 network
-#> IGRAPH d89b886 UNW- 1025 348313 -- 
+#> IGRAPH 08b8d90 UNW- 1025 348313 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from d89b886 (vertex names):
+#> + edges from 08b8d90 (vertex names):
 #>  [1] ENSG00000160963--ENSG00000259124 ENSG00000160963--ENSG00000108821
 #>  [3] ENSG00000160963--ENSG00000216863 ENSG00000160963--ENSG00000100027
 #>  [5] ENSG00000160963--ENSG00000183570 ENSG00000160963--ENSG00000169282

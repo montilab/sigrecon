@@ -9,19 +9,19 @@ the corresponding gene signature of that *same* perturbation in a
 source context and outputs a ranked list of genes for a target context
 is performing **signature recontextualization**.
 
-`sigrecon` provides two baseline recontextualization methods –
+`sigrecon` provides three baseline recontextualization methods –
 projection-based scoring
-([`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md))
-and network propagation
-([`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md) +
-[`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md))
-– plus benchmarking tools
+([`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md)),
+network propagation
+([`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)),
+and a DESeq2-based mean method (`recontextualize(method = "mean")`) –
+plus benchmarking tools
 ([`sig_eval_table()`](https://montilab.github.io/sigrecon/reference/sig_eval_table.md))
 to evaluate how well a recontextualized signature recovers the true
 signature in the target context.
 
-This vignette walks through both methods end to end on a small, bundled
-real-data example, requiring no downloads or external setup.
+This vignette walks through all three methods end to end on a small,
+bundled real-data example, requiring no downloads or external setup.
 
 ## Installation
 
@@ -95,13 +95,57 @@ recon_projectcor[["Panobinostat (LBH589)"]][1:5]
 ## Method 2: Network Propagation
 
 Network propagation works differently:
-[`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
 first learns a gene co-expression network from the target-context
-expression data, then
+expression data, then propagates the source signature across that
+network (via random walk with restart) to find the genes most
+“reachable” from the seed genes – these become the recontextualized
+signature.
+
+``` r
+
+recon_netprop <- netProp(demo_sciplex_se, seeds = demo_sciplex_sigs, sig = "rwr")
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'y'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#>    Power SFT.R.sq  slope truncated.R.sq  mean.k. median.k. max.k.
+#> 1      1    0.119 -0.993        0.33900 156.0000  1.42e+02 265.00
+#> 2      2    0.919 -1.640        0.93300  39.3000  3.02e+01 112.00
+#> 3      3    0.959 -1.580        0.96400  13.3000  7.90e+00  59.50
+#> 4      4    0.962 -1.520        0.96900   5.5500  2.34e+00  37.90
+#> 5      5    0.874 -1.590        0.90900   2.7000  7.98e-01  26.50
+#> 6      6    0.918 -1.500        0.95300   1.4700  2.87e-01  19.90
+#> 7      7    0.918 -1.460        0.94600   0.8820  1.14e-01  15.70
+#> 8      8    0.935 -1.390        0.94600   0.5680  4.71e-02  12.80
+#> 9      9    0.907 -1.350        0.88500   0.3900  2.01e-02  10.90
+#> 10    10    0.933 -1.320        0.91500   0.2820  9.13e-03   9.43
+#> 11    12    0.879 -1.260        0.87200   0.1690  2.00e-03   7.51
+#> 12    14    0.226 -1.520        0.03280   0.1170  4.82e-04   6.78
+#> 13    16    0.213 -1.810       -0.00155   0.0889  1.20e-04   6.28
+#> 14    18    0.217 -1.720        0.00168   0.0723  3.10e-05   5.87
+#> 15    20    0.175 -1.430        0.03040   0.0614  8.29e-06   5.51
+#> Optimal power selected: 2
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+recon_netprop[["Panobinostat (LBH589)"]][1:5]
+#> [1] "ENSG00000166206" "ENSG00000144036" "ENSG00000130449" "ENSG00000248905"
+#> [5] "ENSG00000067225"
+```
+
+[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
+is a one-call wrapper around two lower-level functions,
+[`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)
+(builds the network) and
 [`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)
-propagates the source signature across that network (via random walk
-with restart) to find the genes most “reachable” from the seed genes –
-these become the recontextualized signature.
+(propagates across it). Building the network is the expensive step, so
+if you need to propagate many different seed sets across the *same*
+network, build it once and pass it back in via `ig` instead of calling
+[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
+repeatedly:
 
 ``` r
 
@@ -134,10 +178,182 @@ network <- wgcna.adj(target_expr, cor.type = "signed hybrid", diag_zero = TRUE, 
 #> "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for
 #> individual columns with zero (or missing) MAD.
 
-recon_netprop <- network_sig(network, seeds = demo_sciplex_sigs, sig = "rwr")
-recon_netprop[["Panobinostat (LBH589)"]][1:5]
-#> [1] "ENSG00000151746" "ENSG00000170776" "ENSG00000187079" "ENSG00000196935"
-#> [5] "ENSG00000154380"
+recon_netprop2 <- netProp(ig = network, seeds = demo_sciplex_sigs, sig = "rwr")
+identical(recon_netprop, recon_netprop2)
+#> [1] FALSE
+```
+
+See the [Network Propagation in
+Depth](https://montilab.github.io/sigrecon/articles/2-network-propagation-details.md)
+vignette for more on
+[`wgcna.adj()`](https://montilab.github.io/sigrecon/reference/wgcna.adj.md)/[`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)’s
+individual parameters.
+
+## Method 3: Mean (DESeq2)
+
+The mean method takes a different approach entirely: rather than
+recontextualizing a signature you already have, it *derives* one
+directly from target-context expression data, by running DESeq2 between
+perturbed and control samples and keeping the top upregulated genes. It
+needs raw counts and sample metadata identifying which samples are
+perturbed vs. control (and by what), so it doesn’t fit the SciPlex demo
+signatures used above – here’s a minimal, fabricated example showing the
+shape of the inputs:
+
+``` r
+
+set.seed(42)
+n_genes <- 30
+
+# g1/g2 are upregulated 4x in pertA samples; everything else is unperturbed noise.
+ctrl_base <- rnbinom(n_genes, mu = 200, size = 10)
+pert_base <- ctrl_base
+pert_base[1:2] <- pert_base[1:2] * 4
+
+sample_counts <- function(base, n) {
+  sapply(seq_len(n), function(i) rnbinom(length(base), mu = pmax(base, 1), size = 10))
+}
+
+counts <- cbind(sample_counts(ctrl_base, 4), sample_counts(pert_base, 3))
+rownames(counts) <- paste0("g", seq_len(n_genes))
+colnames(counts) <- c(paste0("ctrl", 1:4), paste0("pertA", 1:3))
+
+coldata <- S4Vectors::DataFrame(
+  perturbation = c(rep("control", 4), rep("pertA", 3)),
+  condition    = c(rep("Control", 4), rep("Perturbed", 3)),
+  row.names    = colnames(counts)
+)
+
+se_mean <- SummarizedExperiment(assays = list(counts = counts), colData = coldata)
+
+recon_mean <- recontextualize(
+  method = "mean",
+  se = se_mean,
+  perturbation_col = "perturbation",
+  condition_col = "condition",
+  alpha = 1,
+  limit = 2
+)
+recon_mean
+#> $pertA
+#> [1] "g2" "g1"
+```
+
+`g1`/`g2` are the two genes consistently higher in `pertA` samples than
+in controls, so they come out as the derived signature for `pertA`.
+
+## One entry point: `recontextualize()`
+
+Each method above
+([`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md),
+[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md),
+the mean method) can also be run through a single dispatcher,
+[`recontextualize()`](https://montilab.github.io/sigrecon/reference/recontextualize.md),
+by setting `method = "projectCor"`, `"networkProp"`, or `"mean"`. This
+is convenient when method choice is itself a parameter of a larger
+workflow (e.g. looping over multiple methods in a benchmarking script)
+rather than something fixed at call-site.
+
+``` r
+
+identical(
+  recontextualize(method = "projectCor", se = demo_sciplex_se, sigs = demo_sciplex_sigs, score = "gsva"),
+  projectCor(demo_sciplex_se, demo_sciplex_sigs, score = "gsva")
+)
+#> ℹ No assay name provided; using default assay 'logcounts'
+#> ℹ No assay name provided; using default assay 'logcounts'
+#> [1] TRUE
+
+identical(
+  recontextualize(method = "networkProp", se = demo_sciplex_se, seeds = demo_sciplex_sigs, sig = "rwr"),
+  netProp(demo_sciplex_se, seeds = demo_sciplex_sigs, sig = "rwr")
+)
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'y'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#>    Power SFT.R.sq  slope truncated.R.sq  mean.k. median.k. max.k.
+#> 1      1    0.119 -0.993        0.33900 156.0000  1.42e+02 265.00
+#> 2      2    0.919 -1.640        0.93300  39.3000  3.02e+01 112.00
+#> 3      3    0.959 -1.580        0.96400  13.3000  7.90e+00  59.50
+#> 4      4    0.962 -1.520        0.96900   5.5500  2.34e+00  37.90
+#> 5      5    0.874 -1.590        0.90900   2.7000  7.98e-01  26.50
+#> 6      6    0.918 -1.500        0.95300   1.4700  2.87e-01  19.90
+#> 7      7    0.918 -1.460        0.94600   0.8820  1.14e-01  15.70
+#> 8      8    0.935 -1.390        0.94600   0.5680  4.71e-02  12.80
+#> 9      9    0.907 -1.350        0.88500   0.3900  2.01e-02  10.90
+#> 10    10    0.933 -1.320        0.91500   0.2820  9.13e-03   9.43
+#> 11    12    0.879 -1.260        0.87200   0.1690  2.00e-03   7.51
+#> 12    14    0.226 -1.520        0.03280   0.1170  4.82e-04   6.78
+#> 13    16    0.213 -1.810       -0.00155   0.0889  1.20e-04   6.28
+#> 14    18    0.217 -1.720        0.00168   0.0723  3.10e-05   5.87
+#> 15    20    0.175 -1.430        0.03040   0.0614  8.29e-06   5.51
+#> Optimal power selected: 2
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#> Using weighted graph
+#> Reached Convergence. Iteration step: 16
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'y'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#>    Power SFT.R.sq  slope truncated.R.sq  mean.k. median.k. max.k.
+#> 1      1    0.119 -0.993        0.33900 156.0000  1.42e+02 265.00
+#> 2      2    0.919 -1.640        0.93300  39.3000  3.02e+01 112.00
+#> 3      3    0.959 -1.580        0.96400  13.3000  7.90e+00  59.50
+#> 4      4    0.962 -1.520        0.96900   5.5500  2.34e+00  37.90
+#> 5      5    0.874 -1.590        0.90900   2.7000  7.98e-01  26.50
+#> 6      6    0.918 -1.500        0.95300   1.4700  2.87e-01  19.90
+#> 7      7    0.918 -1.460        0.94600   0.8820  1.14e-01  15.70
+#> 8      8    0.935 -1.390        0.94600   0.5680  4.71e-02  12.80
+#> 9      9    0.907 -1.350        0.88500   0.3900  2.01e-02  10.90
+#> 10    10    0.933 -1.320        0.91500   0.2820  9.13e-03   9.43
+#> 11    12    0.879 -1.260        0.87200   0.1690  2.00e-03   7.51
+#> 12    14    0.226 -1.520        0.03280   0.1170  4.82e-04   6.78
+#> 13    16    0.213 -1.810       -0.00155   0.0889  1.20e-04   6.28
+#> 14    18    0.217 -1.720        0.00168   0.0723  3.10e-05   5.87
+#> 15    20    0.175 -1.430        0.03040   0.0614  8.29e-06   5.51
+#> Optimal power selected: 2
+#> Warning in (function (x, y = NULL, robustX = TRUE, robustY = TRUE, use =
+#> "all.obs", : bicor: zero MAD in variable 'x'. Pearson correlation was used for
+#> individual columns with zero (or missing) MAD.
+#> Using weighted graph
+#> Reached Convergence. Iteration step: 16
+#> [1] FALSE
+
+identical(
+  recontextualize(
+    method = "mean", se = se_mean,
+    perturbation_col = "perturbation", condition_col = "condition",
+    alpha = 1, limit = 2
+  ),
+  recon_mean
+)
+#> converting counts to integer mode
+#> -- note: fitType='parametric', but the dispersion trend was not well captured by the
+#>    function: y = a/x + b, and a local regression fit was automatically substituted.
+#>    specify fitType='local' or 'mean' to avoid this message next time.
+#> [1] TRUE
+```
+
+For `method = "networkProp"`,
+[`recontextualize()`](https://montilab.github.io/sigrecon/reference/recontextualize.md)
+also accepts a pre-built `ig` (just like
+[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md))
+to skip network construction and reuse a cached network:
+
+``` r
+
+identical(
+  recontextualize(method = "networkProp", ig = network, seeds = demo_sciplex_sigs, sig = "rwr"),
+  netProp(ig = network, seeds = demo_sciplex_sigs, sig = "rwr")
+)
+#> [1] FALSE
 ```
 
 ## Benchmarking against the ground truth

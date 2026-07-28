@@ -7,11 +7,11 @@ library(SummarizedExperiment)
 ```
 
 The [Getting
-Started](https://montilab.github.io/sigrecon/articles/getting-started.md)
+Started](https://montilab.github.io/sigrecon/articles/1-getting-started.md)
 vignette uses `sigrecon`’s bundled demo data. This vignette instead
 walks through taking **your own** differential expression (DE) results
 and expression data all the way through
-[`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md)/[`network_sig()`](https://montilab.github.io/sigrecon/reference/network_sig.md)
+[`projectCor()`](https://montilab.github.io/sigrecon/reference/projectCor.md)/[`netProp()`](https://montilab.github.io/sigrecon/reference/netProp.md)
 and
 [`sig_eval_table()`](https://montilab.github.io/sigrecon/reference/sig_eval_table.md).
 
@@ -97,7 +97,7 @@ fold-change, p-value, and gene ID via
 ## Next steps
 
 - The [Getting
-  Started](https://montilab.github.io/sigrecon/articles/getting-started.md)
+  Started](https://montilab.github.io/sigrecon/articles/1-getting-started.md)
   vignette for a walkthrough using real bundled data, including a
   no-change baseline comparison
 - [`?demo_datasets`](https://montilab.github.io/sigrecon/reference/demo_datasets.md)
