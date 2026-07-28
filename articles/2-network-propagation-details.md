@@ -97,9 +97,9 @@ network <- wgcna.adj(
 #> individual columns with zero (or missing) MAD.
 
 network
-#> IGRAPH 08b8d90 UNW- 1025 348313 -- 
+#> IGRAPH b464824 UNW- 1025 348313 -- 
 #> + attr: name (v/c), weight (e/n)
-#> + edges from 08b8d90 (vertex names):
+#> + edges from b464824 (vertex names):
 #>  [1] ENSG00000160963--ENSG00000259124 ENSG00000160963--ENSG00000108821
 #>  [3] ENSG00000160963--ENSG00000216863 ENSG00000160963--ENSG00000100027
 #>  [5] ENSG00000160963--ENSG00000183570 ENSG00000160963--ENSG00000169282
