@@ -71,6 +71,101 @@
   )
 }
 
+#' @title Network-propagation based Recontextualization, from expression data to signature.
+#'
+#' @description
+#' Learns a gene co-expression network from target-context expression data
+#' with [wgcna.adj()], then propagates seed signatures across it with
+#' [network_sig()]. This is the one-call convenience wrapper for the two-step
+#' `wgcna.adj()` + `network_sig()` workflow; use `wgcna.adj()`/`network_sig()`
+#' directly (or pass a pre-built `ig`) when you need to reuse the same
+#' network across many propagation calls, since building the network is the
+#' expensive step.
+#'
+#' @param se A SummarizedExperiment object containing target-context expression
+#'   data. Not needed if `ig` is supplied.
+#' @param seeds Either a single unnamed gene "TP53", a named list of genes, or
+#'   a list of named lists of genes.
+#' @param ig An optional pre-built igraph, e.g. from a previous [wgcna.adj()]
+#'   call. If supplied, network construction is skipped and `se` is ignored.
+#' @param sig A string specifying the type of network signature: random walk, correlation etc.
+#' @param avg_p A boolean specifying whether to ensemble random walk results over a range of restart values
+#' @param avg_p_vals A numeric vector specifying the start and end of a arithmetic sequence to explore restart values.
+#' @param avg_p_length A numeric specifying how many values within `avg_p_vals` to include in the ensemble
+#' @param p A numeric specifying the restart value for random walk, default=0.1
+#' @param bootstrap A boolean specifying whether to use empirical distributions of stationary values to find significant genes.
+#' @param n_bootstraps A numeric specifying the number of bootstraps to perform.
+#' @param limit A numeric specifying the number of genes to be included in the network signature. Default is 30.
+#' @param assay_name Assay name in `se` to use for network construction. Defaults to the first assay.
+#' @param nfeatures Number of variable genes to use when learning the graph from `se`.
+#'   Defaults to `min(10000, nrow(assay(se)))`.
+#' @param min.sft Minimum scale-free topology fitting index used by [wgcna.adj()].
+#' @param beta Optional soft-thresholding power passed to [wgcna.adj()].
+#' @param cores Number of CPU cores passed to [wgcna.adj()].
+#' @param cor.fn Correlation function passed to [wgcna.adj()].
+#' @param cor.type Correlation network type passed to [wgcna.adj()].
+#' @param powers Candidate power values passed to [wgcna.adj()] when `beta` is `NULL`.
+#' @param diag_zero Whether to zero the diagonal of the learned adjacency matrix
+#'   before converting it to igraph.
+#'
+#' @return A named list of recontextualized gene signatures.
+#'
+#' @export
+netProp <- function(
+  se = NULL,
+  seeds,
+  ig = NULL,
+  sig = c("rwr", "corr"),
+  avg_p = FALSE,
+  avg_p_vals = c(1e-4, 1e-1),
+  avg_p_length = 5,
+  p = 0.1,
+  bootstrap = FALSE,
+  n_bootstraps = 1000,
+  limit = 30,
+  assay_name = NULL,
+  nfeatures = NULL,
+  min.sft = 0.85,
+  beta = NULL,
+  cores = 1,
+  cor.fn = c("bicor", "cor"),
+  cor.type = c("unsigned", "signed hybrid", "signed"),
+  powers = c(seq(1, 10, by = 1), seq(12, 20, by = 2)),
+  diag_zero = TRUE
+) {
+  if (is.null(ig)) {
+    if (is.null(se)) {
+      stop("Either 'se' or 'ig' must be supplied to netProp().")
+    }
+
+    ig <- .build_networkprop_graph(
+      se = se,
+      assay_name = assay_name,
+      nfeatures = nfeatures,
+      min.sft = min.sft,
+      beta = beta,
+      cores = cores,
+      cor.fn = cor.fn,
+      cor.type = cor.type,
+      powers = powers,
+      diag_zero = diag_zero
+    )
+  }
+
+  network_sig(
+    ig = ig,
+    seeds = seeds,
+    sig = match.arg(sig),
+    avg_p = avg_p,
+    avg_p_vals = avg_p_vals,
+    avg_p_length = avg_p_length,
+    p = p,
+    bootstrap = bootstrap,
+    n_bootstraps = n_bootstraps,
+    limit = limit
+  )
+}
+
 
 #' Create (gene x seed) prior matrix based on seed signatures.
 #'

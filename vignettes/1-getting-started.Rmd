@@ -23,13 +23,14 @@ that takes a ranked list of genes from a source context and outputs a ranked
 list of genes for a target context is performing **signature
 recontextualization**.
 
-`sigrecon` provides two baseline recontextualization methods --
-projection-based scoring (`projectCor()`) and network propagation
-(`wgcna.adj()` + `network_sig()`) -- plus benchmarking tools
-(`sig_eval_table()`) to evaluate how well a recontextualized signature
-recovers the true signature in the target context.
+`sigrecon` provides three baseline recontextualization methods --
+projection-based scoring (`projectCor()`), network propagation
+(`netProp()`), and a DESeq2-based mean method (`recontextualize(method =
+"mean")`) -- plus benchmarking tools (`sig_eval_table()`) to evaluate how
+well a recontextualized signature recovers the true signature in the target
+context.
 
-This vignette walks through both methods end to end on a small, bundled
+This vignette walks through all three methods end to end on a small, bundled
 real-data example, requiring no downloads or external setup.
 
 ## Installation
@@ -89,18 +90,122 @@ recon_projectcor[["Panobinostat (LBH589)"]][1:5]
 
 ## Method 2: Network Propagation
 
-Network propagation works differently: `wgcna.adj()` first learns a gene
+Network propagation works differently: `netProp()` first learns a gene
 co-expression network from the target-context expression data, then
-`network_sig()` propagates the source signature across that network (via
-random walk with restart) to find the genes most "reachable" from the seed
-genes -- these become the recontextualized signature.
+propagates the source signature across that network (via random walk with
+restart) to find the genes most "reachable" from the seed genes -- these
+become the recontextualized signature.
 
 ```{r netprop, message=FALSE}
+recon_netprop <- netProp(demo_sciplex_se, seeds = demo_sciplex_sigs, sig = "rwr")
+recon_netprop[["Panobinostat (LBH589)"]][1:5]
+```
+
+`netProp()` is a one-call wrapper around two lower-level functions,
+`wgcna.adj()` (builds the network) and `network_sig()` (propagates across
+it). Building the network is the expensive step, so if you need to
+propagate many different seed sets across the *same* network, build it once
+and pass it back in via `ig` instead of calling `netProp()` repeatedly:
+
+```{r netprop-reuse, message=FALSE}
 target_expr <- t(assay(demo_sciplex_se))
 network <- wgcna.adj(target_expr, cor.type = "signed hybrid", diag_zero = TRUE, igraph = TRUE)
 
-recon_netprop <- network_sig(network, seeds = demo_sciplex_sigs, sig = "rwr")
-recon_netprop[["Panobinostat (LBH589)"]][1:5]
+recon_netprop2 <- netProp(ig = network, seeds = demo_sciplex_sigs, sig = "rwr")
+identical(recon_netprop, recon_netprop2)
+```
+
+See the [Network Propagation in Depth](2-network-propagation-details.html)
+vignette for more on `wgcna.adj()`/`network_sig()`'s individual parameters.
+
+## Method 3: Mean (DESeq2)
+
+The mean method takes a different approach entirely: rather than
+recontextualizing a signature you already have, it *derives* one directly
+from target-context expression data, by running DESeq2 between perturbed and
+control samples and keeping the top upregulated genes. It needs raw counts
+and sample metadata identifying which samples are perturbed vs. control (and
+by what), so it doesn't fit the SciPlex demo signatures used above -- here's
+a minimal, fabricated example showing the shape of the inputs:
+
+```{r mean-demo, message=FALSE}
+set.seed(42)
+n_genes <- 30
+
+# g1/g2 are upregulated 4x in pertA samples; everything else is unperturbed noise.
+ctrl_base <- rnbinom(n_genes, mu = 200, size = 10)
+pert_base <- ctrl_base
+pert_base[1:2] <- pert_base[1:2] * 4
+
+sample_counts <- function(base, n) {
+  sapply(seq_len(n), function(i) rnbinom(length(base), mu = pmax(base, 1), size = 10))
+}
+
+counts <- cbind(sample_counts(ctrl_base, 4), sample_counts(pert_base, 3))
+rownames(counts) <- paste0("g", seq_len(n_genes))
+colnames(counts) <- c(paste0("ctrl", 1:4), paste0("pertA", 1:3))
+
+coldata <- S4Vectors::DataFrame(
+  perturbation = c(rep("control", 4), rep("pertA", 3)),
+  condition    = c(rep("Control", 4), rep("Perturbed", 3)),
+  row.names    = colnames(counts)
+)
+
+se_mean <- SummarizedExperiment(assays = list(counts = counts), colData = coldata)
+
+recon_mean <- recontextualize(
+  method = "mean",
+  se = se_mean,
+  perturbation_col = "perturbation",
+  condition_col = "condition",
+  alpha = 1,
+  limit = 2
+)
+recon_mean
+```
+
+`g1`/`g2` are the two genes consistently higher in `pertA` samples than in
+controls, so they come out as the derived signature for `pertA`.
+
+## One entry point: `recontextualize()`
+
+Each method above (`projectCor()`, `netProp()`, the mean method) can also be
+run through a single dispatcher, `recontextualize()`, by setting `method =
+"projectCor"`, `"networkProp"`, or `"mean"`. This is convenient when method
+choice is itself a parameter of a larger workflow (e.g. looping over
+multiple methods in a benchmarking script) rather than something fixed at
+call-site.
+
+```{r recontextualize-equivalence}
+identical(
+  recontextualize(method = "projectCor", se = demo_sciplex_se, sigs = demo_sciplex_sigs, score = "gsva"),
+  projectCor(demo_sciplex_se, demo_sciplex_sigs, score = "gsva")
+)
+
+identical(
+  recontextualize(method = "networkProp", se = demo_sciplex_se, seeds = demo_sciplex_sigs, sig = "rwr"),
+  netProp(demo_sciplex_se, seeds = demo_sciplex_sigs, sig = "rwr")
+)
+
+identical(
+  recontextualize(
+    method = "mean", se = se_mean,
+    perturbation_col = "perturbation", condition_col = "condition",
+    alpha = 1, limit = 2
+  ),
+  recon_mean
+)
+```
+
+For `method = "networkProp"`, `recontextualize()` also accepts a pre-built
+`ig` (just like `netProp()`) to skip network construction and reuse a
+cached network:
+
+```{r recontextualize-ig, message=FALSE}
+identical(
+  recontextualize(method = "networkProp", ig = network, seeds = demo_sciplex_sigs, sig = "rwr"),
+  netProp(ig = network, seeds = demo_sciplex_sigs, sig = "rwr")
+)
 ```
 
 ## Benchmarking against the ground truth

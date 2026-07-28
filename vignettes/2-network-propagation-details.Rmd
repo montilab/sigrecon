@@ -19,11 +19,21 @@ library(sigrecon)
 library(SummarizedExperiment)
 ```
 
-The [Getting Started](getting-started.html) vignette uses `network_sig()` with
-its defaults. This vignette goes deeper: how `wgcna.adj()` builds the
+The [Getting Started](1-getting-started.html) vignette uses `netProp()`, a
+one-call wrapper around `wgcna.adj()` (builds the network) and
+`network_sig()` (propagates across it) with their defaults. This vignette
+goes deeper into those two pieces individually: how `wgcna.adj()` builds the
 network `network_sig()` operates on, the two different algorithms behind
 `sig = "corr"` vs. `sig = "rwr"`, and what each of `network_sig()`'s options
 (`p`, `avg_p`, `bootstrap`, `n_bootstraps`, `limit`) actually controls.
+
+Working with `wgcna.adj()`/`network_sig()` directly like this is worthwhile
+whenever you want to reuse the *same* built network across many propagation
+calls -- e.g. propagating many different seed sets, or sweeping over `p`
+values, without repeating the expensive network-construction step each
+time. `netProp()` supports this too, via its `ig` argument (see the end of
+the Getting Started vignette) -- this vignette just shows what's underneath
+that shortcut.
 
 We'll use the bundled SciPlex demo data throughout.
 

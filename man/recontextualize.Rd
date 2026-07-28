@@ -9,6 +9,7 @@ recontextualize(
   se = NULL,
   seeds = NULL,
   sigs = NULL,
+  ig = NULL,
   score = c("gsva", "eigen"),
   sig = c("rwr", "corr"),
   avg_p = FALSE,
@@ -50,9 +51,13 @@ and to learn the \code{"networkProp"} graph.}
 are interpreted as perturbation labels and lengths are used as output sizes
 when \code{limit} is not supplied.}
 
+\item{ig}{An optional pre-built igraph for method = \code{"networkProp"}, e.g.
+from a previous \code{\link[=wgcna.adj]{wgcna.adj()}} call. If supplied, network construction is
+skipped and \code{se} is not required. See \code{\link[=netProp]{netProp()}}.}
+
 \item{score}{Scoring method used by \code{"projectCor"}.}
 
-\item{sig}{Network signature mode passed to \code{\link[=network_sig]{network_sig()}}. Defaults to \code{"rwr"}.}
+\item{sig}{Network signature mode passed to \code{\link[=netProp]{netProp()}}. Defaults to \code{"rwr"}.}
 
 \item{avg_p}{Whether to ensemble network propagation over multiple restart probabilities.}
 
@@ -60,11 +65,11 @@ when \code{limit} is not supplied.}
 
 \item{avg_p_length}{Number of restart probabilities to average when \code{avg_p = TRUE}.}
 
-\item{p}{Restart probability passed to \code{\link[=network_sig]{network_sig()}}.}
+\item{p}{Restart probability passed to \code{\link[=netProp]{netProp()}}.}
 
-\item{bootstrap}{Whether to use bootstrap-based extraction in \code{\link[=network_sig]{network_sig()}}.}
+\item{bootstrap}{Whether to use bootstrap-based extraction in \code{\link[=netProp]{netProp()}}.}
 
-\item{n_bootstraps}{Number of bootstrap replicates passed to \code{\link[=network_sig]{network_sig()}}.}
+\item{n_bootstraps}{Number of bootstrap replicates passed to \code{\link[=netProp]{netProp()}}.}
 
 \item{limit}{Number of genes to keep for each output signature. If \code{NULL},
 \code{"networkProp"} and \code{"projectCor"} keep the original signature lengths and
@@ -74,18 +79,18 @@ when \code{limit} is not supplied.}
 \code{"networkProp"} graph from \code{se}. Defaults to \code{min(10000, nrow(assay(se)))}.}
 
 \item{min.sft}{Minimum scale-free topology fitting index used by
-\code{\link[=wgcna.adj]{wgcna.adj()}} when learning the \code{"networkProp"} graph.}
+\code{\link[=netProp]{netProp()}} when learning the \code{"networkProp"} graph.}
 
-\item{beta}{Optional soft-thresholding power passed to \code{\link[=wgcna.adj]{wgcna.adj()}} for
+\item{beta}{Optional soft-thresholding power passed to \code{\link[=netProp]{netProp()}} for
 \code{"networkProp"}.}
 
-\item{cores}{Number of CPU cores passed to \code{\link[=wgcna.adj]{wgcna.adj()}} for \code{"networkProp"}.}
+\item{cores}{Number of CPU cores passed to \code{\link[=netProp]{netProp()}} for \code{"networkProp"}.}
 
-\item{cor.fn}{Correlation function passed to \code{\link[=wgcna.adj]{wgcna.adj()}} for \code{"networkProp"}.}
+\item{cor.fn}{Correlation function passed to \code{\link[=netProp]{netProp()}} for \code{"networkProp"}.}
 
-\item{cor.type}{Correlation network type passed to \code{\link[=wgcna.adj]{wgcna.adj()}} for \code{"networkProp"}.}
+\item{cor.type}{Correlation network type passed to \code{\link[=netProp]{netProp()}} for \code{"networkProp"}.}
 
-\item{powers}{Candidate power values passed to \code{\link[=wgcna.adj]{wgcna.adj()}} for \code{"networkProp"}
+\item{powers}{Candidate power values passed to \code{\link[=netProp]{netProp()}} for \code{"networkProp"}
 when \code{beta} is \code{NULL}.}
 
 \item{diag_zero}{Whether to zero the diagonal of the learned \code{"networkProp"}

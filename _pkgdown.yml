@@ -10,6 +10,7 @@ reference:
   contents:
   - recontextualize
   - projectCor
+  - netProp
   - network_sig
   - wgcna.adj
 

@@ -234,27 +234,30 @@
 #' @param sigs Signature list for the `"projectCor"` method. For `"mean"`, names
 #'   are interpreted as perturbation labels and lengths are used as output sizes
 #'   when `limit` is not supplied.
+#' @param ig An optional pre-built igraph for method = `"networkProp"`, e.g.
+#'   from a previous [wgcna.adj()] call. If supplied, network construction is
+#'   skipped and `se` is not required. See [netProp()].
 #' @param score Scoring method used by `"projectCor"`.
-#' @param sig Network signature mode passed to [network_sig()]. Defaults to `"rwr"`.
+#' @param sig Network signature mode passed to [netProp()]. Defaults to `"rwr"`.
 #' @param avg_p Whether to ensemble network propagation over multiple restart probabilities.
 #' @param avg_p_vals Range of restart probabilities used when `avg_p = TRUE`.
 #' @param avg_p_length Number of restart probabilities to average when `avg_p = TRUE`.
-#' @param p Restart probability passed to [network_sig()].
-#' @param bootstrap Whether to use bootstrap-based extraction in [network_sig()].
-#' @param n_bootstraps Number of bootstrap replicates passed to [network_sig()].
+#' @param p Restart probability passed to [netProp()].
+#' @param bootstrap Whether to use bootstrap-based extraction in [netProp()].
+#' @param n_bootstraps Number of bootstrap replicates passed to [netProp()].
 #' @param limit Number of genes to keep for each output signature. If `NULL`,
 #'   `"networkProp"` and `"projectCor"` keep the original signature lengths and
 #'   `"mean"` uses the lengths of `sigs`.
 #' @param nfeatures Number of variable genes to use when learning the
 #'   `"networkProp"` graph from `se`. Defaults to `min(10000, nrow(assay(se)))`.
 #' @param min.sft Minimum scale-free topology fitting index used by
-#'   [wgcna.adj()] when learning the `"networkProp"` graph.
-#' @param beta Optional soft-thresholding power passed to [wgcna.adj()] for
+#'   [netProp()] when learning the `"networkProp"` graph.
+#' @param beta Optional soft-thresholding power passed to [netProp()] for
 #'   `"networkProp"`.
-#' @param cores Number of CPU cores passed to [wgcna.adj()] for `"networkProp"`.
-#' @param cor.fn Correlation function passed to [wgcna.adj()] for `"networkProp"`.
-#' @param cor.type Correlation network type passed to [wgcna.adj()] for `"networkProp"`.
-#' @param powers Candidate power values passed to [wgcna.adj()] for `"networkProp"`
+#' @param cores Number of CPU cores passed to [netProp()] for `"networkProp"`.
+#' @param cor.fn Correlation function passed to [netProp()] for `"networkProp"`.
+#' @param cor.type Correlation network type passed to [netProp()] for `"networkProp"`.
+#' @param powers Candidate power values passed to [netProp()] for `"networkProp"`
 #'   when `beta` is `NULL`.
 #' @param diag_zero Whether to zero the diagonal of the learned `"networkProp"`
 #'   adjacency matrix before converting it to igraph.
@@ -281,6 +284,7 @@ recontextualize <- function(
   se = NULL,
   seeds = NULL,
   sigs = NULL,
+  ig = NULL,
   score = c("gsva", "eigen"),
   sig = c("rwr", "corr"),
   avg_p = FALSE,
@@ -310,8 +314,8 @@ recontextualize <- function(
 ) {
   method <- match.arg(method)
 
-  if (is.null(se)) {
-    stop("'se' must be supplied to recontextualize().")
+  if (is.null(se) && is.null(ig)) {
+    stop("'se' (or 'ig' for method = 'networkProp') must be supplied to recontextualize().")
   }
 
   if (method == "networkProp") {
@@ -327,8 +331,18 @@ recontextualize <- function(
       limit <- lengths(seeds)
     }
 
-    ig <- .build_networkprop_graph(
+    return(netProp(
       se = se,
+      seeds = seeds,
+      ig = ig,
+      sig = match.arg(sig),
+      avg_p = avg_p,
+      avg_p_vals = avg_p_vals,
+      avg_p_length = avg_p_length,
+      p = p,
+      bootstrap = bootstrap,
+      n_bootstraps = n_bootstraps,
+      limit = limit,
       assay_name = assay_name,
       nfeatures = nfeatures,
       min.sft = min.sft,
@@ -338,20 +352,11 @@ recontextualize <- function(
       cor.type = cor.type,
       powers = powers,
       diag_zero = diag_zero
-    )
-
-    return(network_sig(
-      ig = ig,
-      seeds = seeds,
-      sig = match.arg(sig),
-      avg_p = avg_p,
-      avg_p_vals = avg_p_vals,
-      avg_p_length = avg_p_length,
-      p = p,
-      bootstrap = bootstrap,
-      n_bootstraps = n_bootstraps,
-      limit = limit
     ))
+  }
+
+  if (is.null(se)) {
+    stop("'se' must be supplied to recontextualize().")
   }
 
   if (method == "projectCor") {

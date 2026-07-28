@@ -1,4 +1,4 @@
-test_that("recontextualize dispatches to network_sig and projectCor", {
+test_that("recontextualize dispatches to netProp and projectCor", {
   counts <- matrix(
     c(50, 52, 10, 11, 12, 13,
       48, 51, 9, 10, 11, 12,
@@ -63,6 +63,19 @@ test_that("recontextualize dispatches to network_sig and projectCor", {
       sigs = sigs,
       score = "eigen"
     )
+  )
+})
+
+test_that("recontextualize accepts a pre-built ig for method = 'networkProp'", {
+  test_mat <- matrix(c(0,1,0,1,0,1,0,1,0), nrow=3, ncol=3, byrow=TRUE)
+  test_ig <- igraph::graph_from_adjacency_matrix(test_mat, mode="undirected")
+  igraph::V(test_ig)$name <- c("g1", "g2", "g3")
+
+  seeds <- list(keep = c("g1", "g2"))
+
+  expect_equal(
+    recontextualize(method = "networkProp", ig = test_ig, seeds = seeds, sig = "corr", limit = 2),
+    netProp(ig = test_ig, seeds = seeds, sig = "corr", limit = 2)
   )
 })
 

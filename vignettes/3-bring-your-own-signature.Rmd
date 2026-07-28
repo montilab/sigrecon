@@ -19,10 +19,10 @@ library(sigrecon)
 library(SummarizedExperiment)
 ```
 
-The [Getting Started](getting-started.html) vignette uses `sigrecon`'s
+The [Getting Started](1-getting-started.html) vignette uses `sigrecon`'s
 bundled demo data. This vignette instead walks through taking **your own**
 differential expression (DE) results and expression data all the way through
-`projectCor()`/`network_sig()` and `sig_eval_table()`.
+`projectCor()`/`netProp()` and `sig_eval_table()`.
 
 ## Extracting DEGs from a differential expression table
 
@@ -86,7 +86,7 @@ as long as you tell it which columns hold the perturbation label, log2 fold-chan
 
 ## Next steps
 
-- The [Getting Started](getting-started.html) vignette for a walkthrough
+- The [Getting Started](1-getting-started.html) vignette for a walkthrough
   using real bundled data, including a no-change baseline comparison
 - `?demo_datasets` for real source/target signature pairs across four
   datasets, useful as a reference for what well-formed input looks like

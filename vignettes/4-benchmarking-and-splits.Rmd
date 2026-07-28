@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 library(sigrecon)
 ```
 
-The [Getting Started](getting-started.html) vignette runs `sig_eval_table()`
+The [Getting Started](1-getting-started.html) vignette runs `sig_eval_table()`
 once and glances at a few of its output columns. This vignette covers the
 evaluation design in full: what every output column means, the
 Control/10th/90th split design used to benchmark methods at varying amounts of

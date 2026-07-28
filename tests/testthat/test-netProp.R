@@ -152,3 +152,60 @@ test_that("network_sig skips signatures with no genes in the graph", {
 
   expect_identical(names(result), "keep")
 })
+
+test_that("netProp builds a network from se and matches wgcna.adj + network_sig", {
+  counts <- matrix(
+    c(50, 52, 10, 11, 12, 13,
+      48, 51, 9, 10, 11, 12,
+      8, 9, 45, 47, 10, 11,
+      7, 8, 44, 46, 9, 10,
+      15, 16, 15, 16, 30, 31),
+    nrow = 5,
+    byrow = TRUE,
+    dimnames = list(paste0("g", 1:5), paste0("s", 1:6))
+  )
+  se <- SummarizedExperiment::SummarizedExperiment(assays = list(counts = counts))
+  seeds <- list(sig1 = c("g1", "g2"))
+
+  norm_counts <- log1p(sweep(counts, 2, colSums(counts), "/"))
+  se_norm <- SummarizedExperiment::SummarizedExperiment(assays = list(log_norm = norm_counts))
+  var_genes <- sigrecon:::rank.var.eset(se_norm)$values[1:4]
+  expected_ig <- wgcna.adj(
+    mat = t(norm_counts[var_genes, , drop = FALSE]),
+    beta = 1,
+    cor.type = "signed hybrid",
+    igraph = TRUE,
+    diag_zero = TRUE
+  )
+
+  expect_equal(
+    netProp(
+      se = se,
+      seeds = seeds,
+      sig = "corr",
+      limit = 2,
+      nfeatures = 4,
+      beta = 1,
+      cor.type = "signed hybrid"
+    ),
+    network_sig(ig = expected_ig, seeds = seeds, sig = "corr", limit = 2)
+  )
+})
+
+test_that("netProp skips network construction when ig is supplied", {
+  test_mat <- matrix(c(0,1,0,1,0,1,0,1,0), nrow=3, ncol=3, byrow=TRUE)
+  test_ig <- graph_from_adjacency_matrix(test_mat, mode="undirected")
+  igraph::V(test_ig)$name <- c("g1", "g2", "g3")
+
+  seeds <- list(keep = c("g1", "g2"))
+
+  expect_equal(
+    netProp(ig = test_ig, seeds = seeds, sig = "corr", limit = 2),
+    network_sig(test_ig, seeds, sig = "corr", limit = 2)
+  )
+
+  expect_error(
+    netProp(seeds = seeds),
+    "Either 'se' or 'ig' must be supplied to netProp\\(\\)\\."
+  )
+})
